@@ -57,6 +57,7 @@ class Runtime:
     world_name: str
     app_id: str
     update_script: str
+    status_log_lines: int
 
 
 def runtime_for(game: str) -> Runtime:
@@ -93,6 +94,7 @@ def runtime_for(game: str) -> Runtime:
         world_name=world_name,
         app_id=CONFIG.get(f"{prefix}_APP_ID", "896660" if game == "valheim" else ""),
         update_script=CONFIG.get(f"{prefix}_UPDATE_SCRIPT", ""),
+        status_log_lines=max(400, integer(CONFIG.get(f"{prefix}_STATUS_LOG_LINES", "5000"))),
     )
 
 
@@ -216,7 +218,7 @@ def status(runtime: Runtime) -> dict[str, Any]:
         "active_since": properties.get("ActiveEnterTimestamp", ""),
         "memory_bytes": integer(properties.get("MemoryCurrent")),
     }
-    data.update(parse_game_status(runtime, journal(runtime)))
+    data.update(parse_game_status(runtime, journal(runtime, runtime.status_log_lines)))
     return data
 
 

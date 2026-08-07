@@ -65,6 +65,7 @@ printf '%s\n' \
   "RCLONE_CONFIG=$RCLONE_CONFIG_PATH" \
   "VALHEIM_RCLONE_CONFIG=$RCLONE_CONFIG_PATH" \
   "VALHEIM_RCLONE_REMOTE=valheim-drive:" \
+  "VALHEIM_STATUS_LOG_LINES=5000" \
   > /etc/monke-bot/helper.env
 chown root:"$BOT_GROUP" /etc/monke-bot/helper.env
 chmod 640 /etc/monke-bot/helper.env
