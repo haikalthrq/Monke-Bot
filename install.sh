@@ -44,6 +44,9 @@ fi
 
 install -o "$BOT_USER" -g "$BOT_GROUP" -m 644 "$SCRIPT_DIR/bot.py" "$BOT_DIR/bot.py"
 install -o "$BOT_USER" -g "$BOT_GROUP" -m 644 "$SCRIPT_DIR/requirements.txt" "$BOT_DIR/requirements.txt"
+rm -rf "$BOT_DIR/monkebot"
+cp -a "$SCRIPT_DIR/monkebot" "$BOT_DIR/monkebot"
+chown -R "$BOT_USER:$BOT_GROUP" "$BOT_DIR/monkebot"
 install -o root -g root -m 755 "$SCRIPT_DIR/helper.py" /usr/local/libexec/monke-bot-helper
 
 if [[ ! -f /etc/monke-bot/bot.env ]]; then
@@ -60,7 +63,8 @@ printf '%s\n' \
   "VALHEIM_OWNER=$VALHEIM_USER" \
   "VALHEIM_GROUP=$VALHEIM_GROUP" \
   "RCLONE_CONFIG=$RCLONE_CONFIG_PATH" \
-  "RCLONE_REMOTE=valheim-drive:" \
+  "VALHEIM_RCLONE_CONFIG=$RCLONE_CONFIG_PATH" \
+  "VALHEIM_RCLONE_REMOTE=valheim-drive:" \
   > /etc/monke-bot/helper.env
 chown root:"$BOT_GROUP" /etc/monke-bot/helper.env
 chmod 640 /etc/monke-bot/helper.env

@@ -1,8 +1,8 @@
 # MonkeHost Discord Bot
 
-Discord control bot for Valheim now, with Minecraft support planned as a
-separate module. The bot uses slash commands and every current command starts
-with `v-`:
+Modular Discord control bot for Valheim and Minecraft. The bot uses slash
+commands generated from the enabled game adapters. Valheim commands start
+with `v-`; Minecraft commands will start with `mc-`.
 
 - `/v-start`
 - `/v-stop`
@@ -17,6 +17,22 @@ with `v-`:
 - `/v-health`
 - `/v-logs`
 - `/v-help`
+
+Set `ENABLED_GAMES=valheim,minecraft` after the Minecraft runtime and helper
+configuration are ready to register the `/mc-*` command set.
+
+## Architecture
+
+```text
+bot.py
+monkebot/core/       Discord client, auth, commands, monitor, helper client
+monkebot/games/      Valheim and Minecraft adapters
+helper.py            Root-owned generic game runtime helper
+```
+
+The command layer only knows the adapter interface. Service names, update
+methods, log parsing, and backup locations are selected by the helper runtime
+configuration for each game.
 
 The runtime is separate from the Valheim repository:
 
@@ -72,6 +88,7 @@ DISCORD_GUILD_ID=your-discord-server-id
 ALLOWED_USER_IDS=your-discord-user-id
 ALLOWED_ROLE_IDS=
 STATUS_CHANNEL_ID=optional-notification-channel-id
+ENABLED_GAMES=valheim
 NOTIFY_BACKUP_SUCCESS=false
 MONITOR_INTERVAL=30
 HELPER_PATH=/usr/local/libexec/monke-bot-helper
