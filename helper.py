@@ -174,15 +174,19 @@ def parse_valheim(log: str) -> dict[str, Any]:
         r'(?:Player joined|Player connection lost) server "[^"]+".*?now (\d+) player\(s\)',
         log,
     )
+    connection_events = re.findall(r"Connections (\d+) ZDOS:", log)
     names = re.findall(r"Got character ZDOID from (.+?) : \d+:\d+", log)
     current = active_sessions[-1] if active_sessions else None
     registered = registered_sessions[-1] if registered_sessions else None
+    player_count = connection_events[-1] if connection_events else (player_events[-1] if player_events else 0)
+    player_count_source = "connections_heartbeat" if connection_events else "player_event"
     return {
         "server_name": current[0] if current else (registered[0] if registered else None),
         "join_code": current[1] if current else (registered[1] if registered else None),
         "public_ip": current[2] if current else None,
         "port": int(current[3]) if current else 2456,
-        "player_count": int(player_events[-1]) if player_events else 0,
+        "player_count": int(player_count),
+        "player_count_source": player_count_source,
         "recent_players": list(dict.fromkeys(reversed(names)))[:10],
     }
 

@@ -34,10 +34,12 @@ def make_embed(title: str, description: str = "", color: int = 0x5865F2) -> disc
 
 def status_text(data: dict[str, Any], display_name: str) -> str:
     state = "ONLINE" if data.get("active") else "OFFLINE"
+    player_source = data.get("player_count_source")
+    player_label = "Pemain realtime" if player_source == "connections_heartbeat" else "Pemain terakhir"
     lines = [
         f"**Status:** `{state}`",
         f"**Server:** `{data.get('server_name') or display_name}`",
-        f"**Pemain:** `{data.get('player_count', 0)}`",
+        f"**{player_label}:** `{data.get('player_count', 0)}`",
         f"**PID:** `{data.get('pid', 0)}`",
         f"**Memory:** `{format_bytes(int(data.get('memory_bytes', 0) or 0))}`",
     ]
