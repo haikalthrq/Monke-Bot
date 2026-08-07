@@ -1,0 +1,20 @@
+[Unit]
+Description=MonkeHost Discord Control Bot
+Wants=network-online.target
+After=network-online.target valheim.service
+
+[Service]
+Type=simple
+User=@BOT_USER@
+Group=@BOT_GROUP@
+WorkingDirectory=@BOT_DIR@
+EnvironmentFile=/etc/monke-bot/bot.env
+ExecStart=@BOT_DIR@/.venv/bin/python @BOT_DIR@/bot.py
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=false
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
