@@ -25,5 +25,5 @@ class Authorizer:
     async def require(self, interaction: discord.Interaction) -> bool:
         if self.allowed(interaction):
             return True
-        await interaction.response.send_message("Kamu tidak punya akses ke bot ini.")
+        await interaction.response.send_message("You are not authorized to use this bot.")
         return False

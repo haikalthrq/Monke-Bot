@@ -38,7 +38,7 @@ def make_embed(title: str, description: str = "", color: int = 0x5865F2) -> disc
 
 def format_timestamp(value: str | None) -> str:
     if not value:
-        return "Tidak tersedia"
+        return "Not available"
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
@@ -51,7 +51,7 @@ def format_timestamp(value: str | None) -> str:
 def status_text(data: dict[str, Any], display_name: str) -> str:
     state = "ONLINE" if data.get("active") else "OFFLINE"
     player_source = data.get("player_count_source")
-    player_label = "Pemain realtime" if player_source == "connections_heartbeat" else "Pemain terakhir"
+    player_label = "Players (heartbeat)" if player_source == "connections_heartbeat" else "Players (last event)"
     lines = [
         f"**Status:** `{state}`",
         f"**Server:** `{data.get('server_name') or display_name}`",

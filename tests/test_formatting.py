@@ -11,7 +11,7 @@ class FormattingTests(unittest.TestCase):
         )
 
     def test_missing_timestamp_is_human_readable(self) -> None:
-        self.assertEqual(format_timestamp(None), "Tidak tersedia")
+        self.assertEqual(format_timestamp(None), "Not available")
 
 
 if __name__ == "__main__":

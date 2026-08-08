@@ -42,7 +42,7 @@ class CommandRegistrar:
     async def _send_error(self, interaction: discord.Interaction, exc: Exception) -> None:
         LOGGER.warning("Command failed: %s", exc)
         await interaction.followup.send(
-            embed=make_embed("MonkeHost", f"Gagal menjalankan perintah: `{str(exc)[:500]}`", 0xED4245),
+            embed=make_embed("MonkeHost", f"Command failed: `{str(exc)[:500]}`", 0xED4245),
             ephemeral=False,
         )
 
@@ -72,15 +72,15 @@ class CommandRegistrar:
             try:
                 before = await adapter.status()
                 if before.get("active"):
-                    await self._send(interaction, adapter, f"Server sudah online.\n\n{status_text(before, adapter.display_name)}", 0x57F287)
+                    await self._send(interaction, adapter, f"Server is already online.\n\n{status_text(before, adapter.display_name)}", 0x57F287)
                     return
                 await adapter.start()
                 data = await self._wait_online(adapter)
-                await self._send(interaction, adapter, f"Server dinyalakan.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
+                await self._send(interaction, adapter, f"Server started.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "start", f"Nyalakan server {adapter.display_name}", callback)
+        self._add(adapter, "start", f"Start {adapter.display_name} server", callback)
 
     def _register_stop(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
@@ -90,19 +90,19 @@ class CommandRegistrar:
             try:
                 data = await adapter.status()
                 if not data.get("active"):
-                    await self._send(interaction, adapter, "Server sudah offline.", 0xFEE75C)
+                    await self._send(interaction, adapter, "Server is already offline.", 0xFEE75C)
                     return
                 players = int(data.get("player_count", 0) or 0)
                 if players > 0 and not confirm:
-                    await self._send(interaction, adapter, f"Masih ada `{players}` pemain. Jalankan command dengan `confirm:true` jika yakin.", 0xFEE75C, True)
+                    await self._send(interaction, adapter, f"There are `{players}` players online. Run the command with `confirm:true` if you are sure.", 0xFEE75C)
                     return
                 await adapter.stop()
-                await self._send(interaction, adapter, "Server dimatikan dengan graceful stop. Semua pemain terputus.", 0xFEE75C)
+                await self._send(interaction, adapter, "Server stopped gracefully. All players were disconnected.", 0xFEE75C)
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        callback = app_commands.describe(confirm="Set true jika tetap ingin mematikan saat ada pemain")(callback)
-        self._add(adapter, "stop", f"Matikan server {adapter.display_name} secara aman", callback)
+        callback = app_commands.describe(confirm="Set to true to stop the server while players are online")(callback)
+        self._add(adapter, "stop", f"Stop {adapter.display_name} server gracefully", callback)
 
     def _register_restart(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
@@ -113,15 +113,15 @@ class CommandRegistrar:
                 data = await adapter.status()
                 players = int(data.get("player_count", 0) or 0)
                 if players > 0 and not confirm:
-                    await self._send(interaction, adapter, f"Masih ada `{players}` pemain. Jalankan command dengan `confirm:true` jika yakin.", 0xFEE75C, True)
+                    await self._send(interaction, adapter, f"There are `{players}` players online. Run the command with `confirm:true` if you are sure.", 0xFEE75C)
                     return
                 await adapter.restart()
                 data = await self._wait_online(adapter)
-                await self._send(interaction, adapter, f"Server berhasil direstart.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
+                await self._send(interaction, adapter, f"Server restarted successfully.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        callback = app_commands.describe(confirm="Set true jika tetap ingin restart saat ada pemain")(callback)
+        callback = app_commands.describe(confirm="Set to true to restart the server while players are online")(callback)
         self._add(adapter, "restart", f"Restart server {adapter.display_name}", callback)
 
     def _register_update(self, adapter: GameAdapter) -> None:
@@ -130,19 +130,19 @@ class CommandRegistrar:
                 return
             await self._defer(interaction)
             if not confirm:
-                await self._send(interaction, adapter, "Update akan menghentikan server. Gunakan `confirm:true`.", 0xFEE75C, True)
+                await self._send(interaction, adapter, "The update will stop the server. Use `confirm:true`.", 0xFEE75C)
                 return
             try:
                 data = await adapter.status()
                 if int(data.get("player_count", 0) or 0) > 0:
-                    await self._send(interaction, adapter, "Masih ada pemain online. Hentikan pemain dulu sebelum update.", 0xFEE75C, True)
+                    await self._send(interaction, adapter, "Players are still online. Stop them before updating.", 0xFEE75C)
                     return
                 data = await adapter.update()
-                await self._send(interaction, adapter, f"Server selesai di-update.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
+                await self._send(interaction, adapter, f"Server update completed.\n\n{status_text(data, adapter.display_name)}", 0x57F287)
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        callback = app_commands.describe(confirm="Wajib true karena update menghentikan server")(callback)
+        callback = app_commands.describe(confirm="Must be true because the update stops the server")(callback)
         self._add(adapter, "update", f"Update {adapter.display_name}", callback)
 
     def _register_status(self, adapter: GameAdapter) -> None:
@@ -154,9 +154,9 @@ class CommandRegistrar:
                 data = await adapter.status()
                 try:
                     backup = await adapter.backup_status()
-                    backup_text = f"{backup.get('count', 0)} file, terbaru `{backup.get('latest') or 'n/a'}`"
+                    backup_text = f"{backup.get('count', 0)} files, latest `{backup.get('latest') or 'n/a'}`"
                 except Exception:
-                    backup_text = "tidak tersedia"
+                    backup_text = "unavailable"
                 await self._send(
                     interaction,
                     adapter,
@@ -166,7 +166,7 @@ class CommandRegistrar:
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "status", f"Lihat status server {adapter.display_name}", callback)
+        self._add(adapter, "status", f"Show {adapter.display_name} server status", callback)
 
     def _register_players(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -177,29 +177,29 @@ class CommandRegistrar:
                 data = await adapter.status()
                 source = data.get("player_count_source", "unknown")
                 source_text = {
-                    "connections_heartbeat": "heartbeat koneksi server",
-                    "player_event": "event join/leave terakhir",
+                    "connections_heartbeat": "server connection heartbeat",
+                    "player_event": "latest join/leave event",
                 }.get(source, source)
                 events = data.get("player_events") or []
                 event_lines = []
                 for event in reversed(events):
-                    label = "Pemain masuk" if event.get("event") == "Player joined" else "Pemain keluar"
+                    label = "Player joined" if event.get("event") == "Player joined" else "Player left"
                     event_lines.append(
                         f"`{format_timestamp(event.get('timestamp'))}` - {label} | online: `{event.get('count', 0)}`"
                     )
-                recent_events = "\n".join(event_lines) or "Belum ada aktivitas koneksi terbaru."
+                recent_events = "\n".join(event_lines) or "No recent connection activity."
                 await self._send(
                     interaction,
                     adapter,
-                    f"**Pemain Online**\n`{data.get('player_count', 0)}` pemain\n\n"
-                    f"**Sumber Data**\n{source_text}\n\n"
-                    f"**Data Diperbarui**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
-                    f"**Aktivitas Terakhir**\n{recent_events}",
+                    f"**Players Online**\n`{data.get('player_count', 0)}` players\n\n"
+                    f"**Data Source**\n{source_text}\n\n"
+                    f"**Data Updated**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
+                    f"**Recent Activity**\n{recent_events}",
                 )
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "players", f"Lihat pemain {adapter.display_name}", callback)
+        self._add(adapter, "players", f"Show {adapter.display_name} players", callback)
 
     def _register_join(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -213,12 +213,12 @@ class CommandRegistrar:
                     lines.append(f"**Join code:** `{data['join_code']}`")
                 if data.get("public_ip"):
                     lines.append(f"**IP:** `{data['public_ip']}:{data.get('port', 0)}`")
-                lines.append("Password tidak ditampilkan oleh bot.")
+                lines.append("Password is not displayed by the bot.")
                 await self._send(interaction, adapter, "\n".join(lines))
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "join", f"Lihat cara join {adapter.display_name}", callback)
+        self._add(adapter, "join", f"Show how to join {adapter.display_name}", callback)
 
     def _register_backup(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -227,11 +227,11 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.backup()
-                await self._send(interaction, adapter, f"Backup berhasil. `{data.get('latest')}`\nTotal file: `{data.get('count', 0)}`", 0x57F287, True)
+                await self._send(interaction, adapter, f"Backup completed. `{data.get('latest')}`\nTotal files: `{data.get('count', 0)}`", 0x57F287)
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "backup", f"Jalankan backup {adapter.display_name}", callback)
+        self._add(adapter, "backup", f"Run {adapter.display_name} backup", callback)
 
     def _register_backup_status(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -240,12 +240,12 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.backup_status()
-                files = "\n".join(f"- `{item}`" for item in data.get("files", [])) or "Belum ada backup."
-                await self._send(interaction, adapter, f"**Timer:** `{data.get('timer_active')}`\n**Jumlah:** `{data.get('count', 0)}`\n**File terbaru:** `{data.get('latest') or 'n/a'}`\n\n{files}")
+                files = "\n".join(f"- `{item}`" for item in data.get("files", [])) or "No backups yet."
+                await self._send(interaction, adapter, f"**Timer:** `{data.get('timer_active')}`\n**Count:** `{data.get('count', 0)}`\n**Latest file:** `{data.get('latest') or 'n/a'}`\n\n{files}")
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "backup-status", f"Lihat backup {adapter.display_name}", callback)
+        self._add(adapter, "backup-status", f"Show {adapter.display_name} backups", callback)
 
     def _register_restore(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
@@ -258,18 +258,18 @@ class CommandRegistrar:
                 was_active = bool(before.get("active"))
                 players = int(before.get("player_count", 0) or 0)
                 if was_active and (players > 0 or not confirm):
-                    reason = f"Masih ada `{players}` pemain." if players > 0 else "Server sedang online."
-                    await self._send(interaction, adapter, f"{reason} Gunakan `confirm:true` jika yakin.", 0xFEE75C)
+                    reason = f"There are `{players}` players online." if players > 0 else "Server is online."
+                    await self._send(interaction, adapter, f"{reason} Use `confirm:true` if you are sure.", 0xFEE75C)
                     return
                 if was_active:
                     await adapter.stop()
                 restored = await adapter.restore()
                 if was_active:
                     await adapter.start()
-                    state = "Server dikembalikan online."
+                    state = "Server brought back online."
                 else:
-                    state = "Server tetap offline."
-                await self._send(interaction, adapter, f"Restore berhasil: `{restored.get('restored')}`\n{state}", 0x57F287)
+                    state = "Server remains offline."
+                await self._send(interaction, adapter, f"Restore completed: `{restored.get('restored')}`\n{state}", 0x57F287)
             except Exception as exc:
                 if was_active:
                     try:
@@ -278,8 +278,8 @@ class CommandRegistrar:
                         LOGGER.exception("Could not restart %s after restore failure", adapter.key)
                 await self._send_error(interaction, exc)
 
-        callback = app_commands.describe(confirm="Wajib true karena restore dapat menghentikan server")(callback)
-        self._add(adapter, "restore", f"Restore {adapter.display_name} terbaru", callback)
+        callback = app_commands.describe(confirm="Must be true because restore may stop the server")(callback)
+        self._add(adapter, "restore", f"Restore the latest {adapter.display_name} backup", callback)
 
     def _register_health(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -299,7 +299,7 @@ class CommandRegistrar:
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        self._add(adapter, "health", f"Lihat kesehatan {adapter.display_name}", callback)
+        self._add(adapter, "health", f"Show {adapter.display_name} health", callback)
 
     def _register_logs(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, lines: app_commands.Range[int, 5, 50] = 20) -> None:
@@ -311,12 +311,12 @@ class CommandRegistrar:
                 text = "\n".join(clean_log(line) for line in data.get("lines", []))
                 if len(text) > 1850:
                     text = text[-1850:]
-                await self._send(interaction, adapter, f"```text\n{text or 'Tidak ada log.'}\n```")
+                await self._send(interaction, adapter, f"```text\n{text or 'No logs.'}\n```")
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
-        callback = app_commands.describe(lines="Jumlah baris log, antara 5 dan 50")(callback)
-        self._add(adapter, "logs", f"Lihat log {adapter.display_name}", callback)
+        callback = app_commands.describe(lines="Number of log lines, between 5 and 50")(callback)
+        self._add(adapter, "logs", f"Show {adapter.display_name} logs", callback)
 
     def _register_help(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
@@ -325,21 +325,21 @@ class CommandRegistrar:
             await self._defer(interaction)
             prefix = adapter.command_prefix
             commands = [
-                f"`/{prefix}-status` status server dan backup",
-                f"`/{prefix}-start` dan `/{prefix}-stop` kontrol server",
-                f"`/{prefix}-restart confirm:true` restart server",
-                f"`/{prefix}-update confirm:true` update server",
-                f"`/{prefix}-players` pemain terbaru",
-                f"`/{prefix}-join` info koneksi",
-                f"`/{prefix}-backup` backup sekarang",
-                f"`/{prefix}-backup-status` riwayat backup",
-                f"`/{prefix}-restore confirm:true` restore terbaru",
-                f"`/{prefix}-health` kesehatan host",
-                f"`/{prefix}-logs` log terbaru",
+                f"`/{prefix}-status` server status and backups",
+                f"`/{prefix}-start` and `/{prefix}-stop` server controls",
+                f"`/{prefix}-restart confirm:true` restart the server",
+                f"`/{prefix}-update confirm:true` update the server",
+                f"`/{prefix}-players` recent players",
+                f"`/{prefix}-join` connection information",
+                f"`/{prefix}-backup` create a backup now",
+                f"`/{prefix}-backup-status` backup history",
+                f"`/{prefix}-restore confirm:true` restore the latest backup",
+                f"`/{prefix}-health` host health",
+                f"`/{prefix}-logs` latest logs",
             ]
             await self._send(interaction, adapter, "\n".join(commands))
 
-        self._add(adapter, "help", f"Daftar command {adapter.display_name}", callback)
+        self._add(adapter, "help", f"List {adapter.display_name} commands", callback)
 
     def register(self) -> None:
         for adapter in self.adapters.values():
