@@ -36,6 +36,7 @@ class MonkeClient(discord.Client):
             self.config.guild_id,
             self.config.allowed_user_ids,
             self.config.allowed_role_ids,
+            self.config.allow_all_members,
         )
         CommandRegistrar(self.tree, authorizer, self.adapters).register()
         if self.config.guild_id:

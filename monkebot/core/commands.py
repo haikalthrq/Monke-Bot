@@ -24,8 +24,8 @@ class CommandRegistrar:
     async def _guard(self, interaction: discord.Interaction) -> bool:
         return await self.authorizer.require(interaction)
 
-    async def _defer(self, interaction: discord.Interaction, ephemeral: bool = False) -> None:
-        await interaction.response.defer(ephemeral=ephemeral)
+    async def _defer(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=False)
 
     async def _send(
         self,
@@ -33,18 +33,17 @@ class CommandRegistrar:
         adapter: GameAdapter,
         message: str,
         color: int = 0x5865F2,
-        ephemeral: bool = False,
     ) -> None:
         await interaction.followup.send(
             embed=make_embed(f"MonkeHost | {adapter.display_name}", message, color),
-            ephemeral=ephemeral,
+            ephemeral=False,
         )
 
     async def _send_error(self, interaction: discord.Interaction, exc: Exception) -> None:
         LOGGER.warning("Command failed: %s", exc)
         await interaction.followup.send(
             embed=make_embed("MonkeHost", f"Gagal menjalankan perintah: `{str(exc)[:500]}`", 0xED4245),
-            ephemeral=True,
+            ephemeral=False,
         )
 
     async def _wait_online(self, adapter: GameAdapter) -> dict[str, Any]:
@@ -173,12 +172,12 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.status()
                 names = data.get("recent_players") or []
                 names_text = ", ".join(f"`{name}`" for name in names) if names else "Belum ada nama pemain di log terbaru."
-                await self._send(interaction, adapter, f"**Pemain terdeteksi:** `{data.get('player_count', 0)}`\n**Nama terbaru:** {names_text}", ephemeral=True)
+                await self._send(interaction, adapter, f"**Pemain terdeteksi:** `{data.get('player_count', 0)}`\n**Nama terbaru:** {names_text}")
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -188,7 +187,7 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.status()
                 lines = [f"**Server:** `{data.get('server_name') or adapter.display_name}`"]
@@ -197,7 +196,7 @@ class CommandRegistrar:
                 if data.get("public_ip"):
                     lines.append(f"**IP:** `{data['public_ip']}:{data.get('port', 0)}`")
                 lines.append("Password tidak ditampilkan oleh bot.")
-                await self._send(interaction, adapter, "\n".join(lines), ephemeral=True)
+                await self._send(interaction, adapter, "\n".join(lines))
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -207,7 +206,7 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.backup()
                 await self._send(interaction, adapter, f"Backup berhasil. `{data.get('latest')}`\nTotal file: `{data.get('count', 0)}`", 0x57F287, True)
@@ -220,11 +219,11 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.backup_status()
                 files = "\n".join(f"- `{item}`" for item in data.get("files", [])) or "Belum ada backup."
-                await self._send(interaction, adapter, f"**Timer:** `{data.get('timer_active')}`\n**Jumlah:** `{data.get('count', 0)}`\n**File terbaru:** `{data.get('latest') or 'n/a'}`\n\n{files}", ephemeral=True)
+                await self._send(interaction, adapter, f"**Timer:** `{data.get('timer_active')}`\n**Jumlah:** `{data.get('count', 0)}`\n**File terbaru:** `{data.get('latest') or 'n/a'}`\n\n{files}")
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -234,7 +233,7 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             was_active = False
             try:
                 before = await adapter.status()
@@ -242,7 +241,7 @@ class CommandRegistrar:
                 players = int(before.get("player_count", 0) or 0)
                 if was_active and (players > 0 or not confirm):
                     reason = f"Masih ada `{players}` pemain." if players > 0 else "Server sedang online."
-                    await self._send(interaction, adapter, f"{reason} Gunakan `confirm:true` jika yakin.", 0xFEE75C, True)
+                    await self._send(interaction, adapter, f"{reason} Gunakan `confirm:true` jika yakin.", 0xFEE75C)
                     return
                 if was_active:
                     await adapter.stop()
@@ -252,7 +251,7 @@ class CommandRegistrar:
                     state = "Server dikembalikan online."
                 else:
                     state = "Server tetap offline."
-                await self._send(interaction, adapter, f"Restore berhasil: `{restored.get('restored')}`\n{state}", 0x57F287, True)
+                await self._send(interaction, adapter, f"Restore berhasil: `{restored.get('restored')}`\n{state}", 0x57F287)
             except Exception as exc:
                 if was_active:
                     try:
@@ -268,7 +267,7 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.health()
                 await self._send(
@@ -278,7 +277,6 @@ class CommandRegistrar:
                     f"**Disk free:** `{format_bytes(data['disk_free'])}`\n"
                     f"**RAM available:** `{format_bytes(data['memory_available'])}` / `{format_bytes(data['memory_total'])}`\n"
                     f"**Load 1m:** `{data['load_1m']:.2f}`\n\n{status_text(data['server'], adapter.display_name)}",
-                    ephemeral=True,
                 )
             except Exception as exc:
                 await self._send_error(interaction, exc)
@@ -289,13 +287,13 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction, lines: app_commands.Range[int, 5, 50] = 20) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             try:
                 data = await adapter.logs(int(lines))
                 text = "\n".join(clean_log(line) for line in data.get("lines", []))
                 if len(text) > 1850:
                     text = text[-1850:]
-                await self._send(interaction, adapter, f"```text\n{text or 'Tidak ada log.'}\n```", ephemeral=True)
+                await self._send(interaction, adapter, f"```text\n{text or 'Tidak ada log.'}\n```")
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -306,7 +304,7 @@ class CommandRegistrar:
         async def callback(interaction: discord.Interaction) -> None:
             if not await self._guard(interaction):
                 return
-            await self._defer(interaction, ephemeral=True)
+            await self._defer(interaction)
             prefix = adapter.command_prefix
             commands = [
                 f"`/{prefix}-status` status server dan backup",
@@ -321,7 +319,7 @@ class CommandRegistrar:
                 f"`/{prefix}-health` kesehatan host",
                 f"`/{prefix}-logs` log terbaru",
             ]
-            await self._send(interaction, adapter, "\n".join(commands), ephemeral=True)
+            await self._send(interaction, adapter, "\n".join(commands))
 
         self._add(adapter, "help", f"Daftar command {adapter.display_name}", callback)
 

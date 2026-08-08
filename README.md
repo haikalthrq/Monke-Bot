@@ -87,6 +87,7 @@ DISCORD_TOKEN=the-bot-token
 DISCORD_GUILD_ID=your-discord-server-id
 ALLOWED_USER_IDS=your-discord-user-id
 ALLOWED_ROLE_IDS=
+ALLOW_ALL_GUILD_MEMBERS=true
 STATUS_CHANNEL_ID=optional-notification-channel-id
 ENABLED_GAMES=valheim
 NOTIFY_BACKUP_SUCCESS=false
@@ -106,4 +107,6 @@ sudo journalctl -u monke-bot.service -f
 ```
 
 Commands are synced to `DISCORD_GUILD_ID` immediately. Only configured user
-IDs or role IDs can run commands.
+IDs or role IDs can run commands unless `ALLOW_ALL_GUILD_MEMBERS=true`. In
+that mode every member of the configured guild can run commands, including
+server stop, restart, update, and restore commands.
