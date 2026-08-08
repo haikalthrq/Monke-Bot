@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import re
 from typing import Any
 
 import discord
+
+
+WIB = timezone(timedelta(hours=7), name="WIB")
 
 
 def format_bytes(value: int) -> str:
@@ -30,6 +34,18 @@ def clean_log(line: str) -> str:
 
 def make_embed(title: str, description: str = "", color: int = 0x5865F2) -> discord.Embed:
     return discord.Embed(title=title, description=description, color=color, timestamp=discord.utils.utcnow())
+
+
+def format_timestamp(value: str | None) -> str:
+    if not value:
+        return "Tidak tersedia"
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(WIB).strftime("%d/%m/%Y %H:%M:%S WIB")
+    except ValueError:
+        return value
 
 
 def status_text(data: dict[str, Any], display_name: str) -> str:

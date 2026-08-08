@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 
 from monkebot.core.auth import Authorizer
-from monkebot.core.formatting import clean_log, format_bytes, make_embed, status_text
+from monkebot.core.formatting import clean_log, format_bytes, format_timestamp, make_embed, status_text
 from monkebot.games.base import GameAdapter
 
 
@@ -183,16 +183,18 @@ class CommandRegistrar:
                 events = data.get("player_events") or []
                 event_lines = []
                 for event in reversed(events):
-                    label = "join" if event.get("event") == "Player joined" else "leave"
-                    event_lines.append(f"`{event.get('timestamp', 'n/a')}` {label}, count `{event.get('count', 0)}`")
-                recent_events = "\n".join(event_lines) or "Belum ada event koneksi terbaru."
+                    label = "Pemain masuk" if event.get("event") == "Player joined" else "Pemain keluar"
+                    event_lines.append(
+                        f"`{format_timestamp(event.get('timestamp'))}` - {label} | online: `{event.get('count', 0)}`"
+                    )
+                recent_events = "\n".join(event_lines) or "Belum ada aktivitas koneksi terbaru."
                 await self._send(
                     interaction,
                     adapter,
-                    f"**Pemain online:** `{data.get('player_count', 0)}`\n"
-                    f"**Sumber:** `{source_text}`\n"
-                    f"**Waktu data:** `{data.get('player_count_at') or 'n/a'}`\n\n"
-                    f"**Event koneksi terbaru:**\n{recent_events}",
+                    f"**Pemain Online**\n`{data.get('player_count', 0)}` pemain\n\n"
+                    f"**Sumber Data**\n{source_text}\n\n"
+                    f"**Data Diperbarui**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
+                    f"**Aktivitas Terakhir**\n{recent_events}",
                 )
             except Exception as exc:
                 await self._send_error(interaction, exc)
