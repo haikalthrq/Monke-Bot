@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 
 from monkebot.core.auth import Authorizer
-from monkebot.core.formatting import clean_log, format_bytes, format_timestamp, make_embed, status_text
+from monkebot.core.formatting import format_bytes, format_log_lines, format_timestamp, make_embed, safe_inline, status_text
 from monkebot.games.base import GameAdapter
 
 
@@ -41,8 +41,9 @@ class CommandRegistrar:
 
     async def _send_error(self, interaction: discord.Interaction, exc: Exception) -> None:
         LOGGER.warning("Command failed: %s", exc)
+        error = safe_inline(exc, max_length=500)
         await interaction.followup.send(
-            embed=make_embed("MonkeHost", f"Command failed: `{str(exc)[:500]}`", 0xED4245),
+            embed=make_embed("MonkeHost", f"Command failed: `{error}`", 0xED4245),
             ephemeral=False,
         )
 
@@ -154,13 +155,16 @@ class CommandRegistrar:
                 data = await adapter.status()
                 try:
                     backup = await adapter.backup_status()
-                    backup_text = f"{backup.get('count', 0)} files, latest `{backup.get('latest') or 'n/a'}`"
+                    backup_text = (
+                        f"**Backup files:** `{backup.get('count') or 0}`\n"
+                        f"**Latest backup:** `{safe_inline(backup.get('latest'), max_length=200)}`"
+                    )
                 except Exception:
-                    backup_text = "unavailable"
+                    backup_text = "**Backup:** `Not available`"
                 await self._send(
                     interaction,
                     adapter,
-                    f"{status_text(data, adapter.display_name)}\n**Backup:** {backup_text}",
+                    f"{status_text(data, adapter.display_name)}\n\n{backup_text}",
                     0x57F287 if data.get("active") else 0xED4245,
                 )
             except Exception as exc:
@@ -179,22 +183,26 @@ class CommandRegistrar:
                 source_text = {
                     "connections_heartbeat": "server connection heartbeat",
                     "player_event": "latest join/leave event",
-                }.get(source, source)
+                }.get(source, "Not available")
                 events = data.get("player_events") or []
                 event_lines = []
                 for event in reversed(events):
-                    label = "Player joined" if event.get("event") == "Player joined" else "Player left"
+                    label = {
+                        "Player joined": "Player joined",
+                        "Player connection lost": "Player left",
+                    }.get(event.get("event"), "Player activity")
                     event_lines.append(
-                        f"`{format_timestamp(event.get('timestamp'))}` - {label} | online: `{event.get('count', 0)}`"
+                        f"`{format_timestamp(event.get('timestamp'))}` | **{label}** | "
+                        f"**Players online:** `{event.get('count') or 0}`"
                     )
                 recent_events = "\n".join(event_lines) or "No recent connection activity."
                 await self._send(
                     interaction,
                     adapter,
-                    f"**Players Online**\n`{data.get('player_count', 0)}` players\n\n"
-                    f"**Data Source**\n{source_text}\n\n"
-                    f"**Data Updated**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
-                    f"**Recent Activity**\n{recent_events}",
+                    f"**Players online**\n`{data.get('player_count') or 0}` players\n\n"
+                    f"**Data source**\n{source_text}\n\n"
+                    f"**Last updated**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
+                    f"**Recent activity**\n{recent_events}",
                 )
             except Exception as exc:
                 await self._send_error(interaction, exc)
@@ -208,11 +216,10 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.status()
-                lines = [f"**Server:** `{data.get('server_name') or adapter.display_name}`"]
-                if data.get("join_code"):
-                    lines.append(f"**Join code:** `{data['join_code']}`")
-                if data.get("public_ip"):
-                    lines.append(f"**IP:** `{data['public_ip']}:{data.get('port', 0)}`")
+                lines = [f"**Server:** `{safe_inline(data.get('server_name'), adapter.display_name, 100)}`"]
+                lines.append(f"**Join code:** `{safe_inline(data.get('join_code'), max_length=100)}`")
+                address = f"{data['public_ip']}:{data.get('port', 0)}" if data.get("public_ip") else None
+                lines.append(f"**IP:** `{safe_inline(address, max_length=100)}`")
                 lines.append("Password is not displayed by the bot.")
                 await self._send(interaction, adapter, "\n".join(lines))
             except Exception as exc:
@@ -227,7 +234,14 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.backup()
-                await self._send(interaction, adapter, f"Backup completed. `{data.get('latest')}`\nTotal files: `{data.get('count', 0)}`", 0x57F287)
+                await self._send(
+                    interaction,
+                    adapter,
+                    f"**Backup completed**\n"
+                    f"**Latest backup:** `{safe_inline(data.get('latest'), max_length=200)}`\n"
+                    f"**Total files:** `{data.get('count') or 0}`",
+                    0x57F287,
+                )
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -240,8 +254,18 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.backup_status()
-                files = "\n".join(f"- `{item}`" for item in data.get("files", [])) or "No backups yet."
-                await self._send(interaction, adapter, f"**Timer:** `{data.get('timer_active')}`\n**Count:** `{data.get('count', 0)}`\n**Latest file:** `{data.get('latest') or 'n/a'}`\n\n{files}")
+                timer = "Active" if data.get("timer_active") else "Inactive"
+                files = "\n".join(
+                    f"- `{safe_inline(item, max_length=100)}`" for item in data.get("files") or []
+                ) or "No backups yet."
+                await self._send(
+                    interaction,
+                    adapter,
+                    f"**Backup timer:** `{timer}`\n"
+                    f"**Total files:** `{data.get('count') or 0}`\n"
+                    f"**Latest backup:** `{safe_inline(data.get('latest'), max_length=200)}`\n\n"
+                    f"**Recent backups**\n{files}",
+                )
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -269,7 +293,14 @@ class CommandRegistrar:
                     state = "Server brought back online."
                 else:
                     state = "Server remains offline."
-                await self._send(interaction, adapter, f"Restore completed: `{restored.get('restored')}`\n{state}", 0x57F287)
+                await self._send(
+                    interaction,
+                    adapter,
+                    f"**Restore completed**\n"
+                    f"**Backup:** `{safe_inline(restored.get('restored'), max_length=200)}`\n"
+                    f"**Server:** {state}",
+                    0x57F287,
+                )
             except Exception as exc:
                 if was_active:
                     try:
@@ -291,10 +322,10 @@ class CommandRegistrar:
                 await self._send(
                     interaction,
                     adapter,
-                    f"**Disk:** `{format_bytes(data['disk_used'])}` / `{format_bytes(data['disk_total'])}` used\n"
+                    f"**Disk usage:** `{format_bytes(data['disk_used'])}` / `{format_bytes(data['disk_total'])}`\n"
                     f"**Disk free:** `{format_bytes(data['disk_free'])}`\n"
-                    f"**RAM available:** `{format_bytes(data['memory_available'])}` / `{format_bytes(data['memory_total'])}`\n"
-                    f"**Load 1m:** `{data['load_1m']:.2f}`\n\n{status_text(data['server'], adapter.display_name)}",
+                    f"**Memory available:** `{format_bytes(data['memory_available'])}` / `{format_bytes(data['memory_total'])}`\n"
+                    f"**Load (1m):** `{data['load_1m']:.2f}`\n\n{status_text(data['server'], adapter.display_name)}",
                 )
             except Exception as exc:
                 await self._send_error(interaction, exc)
@@ -308,9 +339,7 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.logs(int(lines))
-                text = "\n".join(clean_log(line) for line in data.get("lines", []))
-                if len(text) > 1850:
-                    text = text[-1850:]
+                text = format_log_lines(data.get("lines") or [])
                 await self._send(interaction, adapter, f"```text\n{text or 'No logs.'}\n```")
             except Exception as exc:
                 await self._send_error(interaction, exc)
@@ -325,17 +354,17 @@ class CommandRegistrar:
             await self._defer(interaction)
             prefix = adapter.command_prefix
             commands = [
-                f"`/{prefix}-status` server status and backups",
-                f"`/{prefix}-start` and `/{prefix}-stop` server controls",
-                f"`/{prefix}-restart confirm:true` restart the server",
-                f"`/{prefix}-update confirm:true` update the server",
-                f"`/{prefix}-players` recent players",
-                f"`/{prefix}-join` connection information",
-                f"`/{prefix}-backup` create a backup now",
-                f"`/{prefix}-backup-status` backup history",
-                f"`/{prefix}-restore confirm:true` restore the latest backup",
-                f"`/{prefix}-health` host health",
-                f"`/{prefix}-logs` latest logs",
+                f"- `/{prefix}-status` server status and backups",
+                f"- `/{prefix}-start` and `/{prefix}-stop` server controls",
+                f"- `/{prefix}-restart confirm:true` restart the server",
+                f"- `/{prefix}-update confirm:true` update the server",
+                f"- `/{prefix}-players` recent players",
+                f"- `/{prefix}-join` connection information",
+                f"- `/{prefix}-backup` create a backup now",
+                f"- `/{prefix}-backup-status` backup history",
+                f"- `/{prefix}-restore confirm:true` restore the latest backup",
+                f"- `/{prefix}-health` host health",
+                f"- `/{prefix}-logs` latest logs",
             ]
             await self._send(interaction, adapter, "\n".join(commands))
 
