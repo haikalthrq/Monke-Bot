@@ -154,9 +154,9 @@ def systemd_properties(runtime: Runtime) -> dict[str, str]:
     return values
 
 
-def journal(runtime: Runtime, lines: int = 400) -> str:
+def journal(runtime: Runtime, lines: int = 400, output_format: str = "cat") -> str:
     return command(
-        ["journalctl", "-u", runtime.service, "-n", str(lines), "--no-pager", "-o", "cat"],
+        ["journalctl", "-u", runtime.service, "-n", str(lines), "--no-pager", "-o", output_format],
         timeout=15,
     )
 
@@ -171,15 +171,22 @@ def parse_valheim(log: str) -> dict[str, Any]:
         log,
     )
     player_events = re.findall(
-        r'(?:Player joined|Player connection lost) server "[^"]+".*?now (\d+) player\(s\)',
+        r'(?m)^(\S+) .*?(Player joined|Player connection lost) server "[^"]+".*?now (\d+) player\(s\)',
         log,
     )
     connection_events = re.findall(r"Connections (\d+) ZDOS:", log)
     names = re.findall(r"Got character ZDOID from (.+?) : \d+:\d+", log)
     current = active_sessions[-1] if active_sessions else None
     registered = registered_sessions[-1] if registered_sessions else None
-    player_count = connection_events[-1] if connection_events else (player_events[-1] if player_events else 0)
+    player_count = connection_events[-1] if connection_events else (player_events[-1][2] if player_events else 0)
     player_count_source = "connections_heartbeat" if connection_events else "player_event"
+    player_count_at = None
+    if connection_events:
+        heartbeat_lines = re.findall(r"(?m)^(\S+) .*?Connections (\d+) ZDOS:", log)
+        if heartbeat_lines:
+            player_count_at = heartbeat_lines[-1][0]
+    elif player_events:
+        player_count_at = player_events[-1][0]
     return {
         "server_name": current[0] if current else (registered[0] if registered else None),
         "join_code": current[1] if current else (registered[1] if registered else None),
@@ -187,6 +194,11 @@ def parse_valheim(log: str) -> dict[str, Any]:
         "port": int(current[3]) if current else 2456,
         "player_count": int(player_count),
         "player_count_source": player_count_source,
+        "player_count_at": player_count_at,
+        "player_events": [
+            {"timestamp": timestamp, "event": event, "count": int(count)}
+            for timestamp, event, count in player_events[-5:]
+        ],
         "recent_players": list(dict.fromkeys(reversed(names)))[:10],
     }
 
@@ -222,7 +234,7 @@ def status(runtime: Runtime) -> dict[str, Any]:
         "active_since": properties.get("ActiveEnterTimestamp", ""),
         "memory_bytes": integer(properties.get("MemoryCurrent")),
     }
-    data.update(parse_game_status(runtime, journal(runtime, runtime.status_log_lines)))
+    data.update(parse_game_status(runtime, journal(runtime, runtime.status_log_lines, "short-iso")))
     return data
 
 

@@ -175,9 +175,25 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.status()
-                names = data.get("recent_players") or []
-                names_text = ", ".join(f"`{name}`" for name in names) if names else "Belum ada nama pemain di log terbaru."
-                await self._send(interaction, adapter, f"**Pemain terdeteksi:** `{data.get('player_count', 0)}`\n**Nama terbaru:** {names_text}")
+                source = data.get("player_count_source", "unknown")
+                source_text = {
+                    "connections_heartbeat": "heartbeat koneksi server",
+                    "player_event": "event join/leave terakhir",
+                }.get(source, source)
+                events = data.get("player_events") or []
+                event_lines = []
+                for event in reversed(events):
+                    label = "join" if event.get("event") == "Player joined" else "leave"
+                    event_lines.append(f"`{event.get('timestamp', 'n/a')}` {label}, count `{event.get('count', 0)}`")
+                recent_events = "\n".join(event_lines) or "Belum ada event koneksi terbaru."
+                await self._send(
+                    interaction,
+                    adapter,
+                    f"**Pemain online:** `{data.get('player_count', 0)}`\n"
+                    f"**Sumber:** `{source_text}`\n"
+                    f"**Waktu data:** `{data.get('player_count_at') or 'n/a'}`\n\n"
+                    f"**Event koneksi terbaru:**\n{recent_events}",
+                )
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
