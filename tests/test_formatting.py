@@ -1,6 +1,12 @@
 import unittest
 
-from monkebot.core.formatting import format_log_lines, format_timestamp, safe_inline, status_text
+from monkebot.core.formatting import (
+    format_log_lines,
+    format_timestamp,
+    player_event_text,
+    safe_inline,
+    status_text,
+)
 
 
 class FormattingTests(unittest.TestCase):
@@ -27,6 +33,13 @@ class FormattingTests(unittest.TestCase):
     def test_status_uses_generic_player_label_without_source(self) -> None:
         output = status_text({"active": False, "player_count": 0}, "Valheim")
         self.assertIn("**Players:** `0`", output)
+
+    def test_player_event_text_is_compact(self) -> None:
+        self.assertEqual(
+            player_event_text({"event": "Player joined", "name": "Alice", "count": 1}),
+            "`Alice` joined | **Players online:** `1`",
+        )
+        self.assertEqual(player_event_text({"event": "Player joined", "name": None, "count": 1}), "")
 
 
 if __name__ == "__main__":

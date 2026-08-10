@@ -46,6 +46,18 @@ def safe_inline(value: Any, fallback: str = "Not available", max_length: int = 5
     return text
 
 
+def player_event_text(event: dict[str, Any]) -> str:
+    action = {
+        "Player joined": "joined",
+        "Player connection lost": "left",
+    }.get(event.get("event"), "changed status")
+    name = safe_inline(event.get("name"), fallback="", max_length=100)
+    if not name:
+        return ""
+    count = event.get("count") or 0
+    return f"`{name}` {action} | **Players online:** `{count}`"
+
+
 def format_log_lines(lines: list[str], max_chars: int = 1850) -> str:
     selected: list[str] = []
     total = 0

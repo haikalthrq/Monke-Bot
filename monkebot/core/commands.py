@@ -8,7 +8,15 @@ import discord
 from discord import app_commands
 
 from monkebot.core.auth import Authorizer
-from monkebot.core.formatting import format_bytes, format_log_lines, format_timestamp, make_embed, safe_inline, status_text
+from monkebot.core.formatting import (
+    format_bytes,
+    format_log_lines,
+    format_timestamp,
+    make_embed,
+    player_event_text,
+    safe_inline,
+    status_text,
+)
 from monkebot.games.base import GameAdapter
 
 
@@ -184,22 +192,26 @@ class CommandRegistrar:
                     "connections_heartbeat": "server connection heartbeat",
                     "player_event": "latest join/leave event",
                 }.get(source, "Not available")
-                events = data.get("player_events") or []
+                events = [event for event in data.get("player_events") or [] if event.get("name")]
                 event_lines = []
                 for event in reversed(events):
-                    label = {
-                        "Player joined": "Player joined",
-                        "Player connection lost": "Player left",
-                    }.get(event.get("event"), "Player activity")
-                    event_lines.append(
-                        f"`{format_timestamp(event.get('timestamp'))}` | **{label}** | "
-                        f"**Players online:** `{event.get('count') or 0}`"
-                    )
+                    event_lines.append(f"`{format_timestamp(event.get('timestamp'))}` | {player_event_text(event)}")
                 recent_events = "\n".join(event_lines) or "No recent connection activity."
+                player_count = data.get("player_count") or 0
+                player_word = "player" if player_count == 1 else "players"
+                player_names = data.get("player_names") or []
+                if player_names:
+                    names_text = "\n".join(
+                        f"- `{safe_inline(name, max_length=100)}`" for name in player_names
+                    )
+                elif player_count:
+                    names_text = "Player names are not available."
+                else:
+                    names_text = "No players online."
                 await self._send(
                     interaction,
                     adapter,
-                    f"**Players online**\n`{data.get('player_count') or 0}` players\n\n"
+                    f"**Online players**\n`{player_count}` {player_word}\n{names_text}\n\n"
                     f"**Data source**\n{source_text}\n\n"
                     f"**Last updated**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
                     f"**Recent activity**\n{recent_events}",
