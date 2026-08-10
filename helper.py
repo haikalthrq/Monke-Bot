@@ -187,7 +187,7 @@ def parse_valheim_players(log: str) -> dict[str, Any]:
     pending_joins: list[dict[str, Any]] = []
     player_events: list[dict[str, Any]] = []
     latest_heartbeat: tuple[int, str, int] | None = None
-    latest_event: tuple[int, str, int] | None = None
+    latest_event: tuple[int, str, int, str, str | None] | None = None
 
     def remove_oldest() -> str | None:
         if not active_names:
@@ -225,19 +225,22 @@ def parse_valheim_players(log: str) -> dict[str, Any]:
             "name": None,
         }
         player_events.append(player_event)
-        latest_event = (sequence, timestamp, count)
         if event == "Player joined":
             pending_joins.append(player_event)
         else:
-            pending_joins.clear()
-            if count < len(active_names):
+            if count < len(active_names) or len(active_names) == 1:
                 player_event["name"] = remove_oldest()
+        latest_event = (sequence, timestamp, count, event, player_event["name"])
 
     if latest_heartbeat and (latest_event is None or latest_heartbeat[0] >= latest_event[0]):
         _, player_count_at, player_count = latest_heartbeat
         player_count_source = "connections_heartbeat"
     elif latest_event:
-        _, player_count_at, player_count = latest_event
+        _, player_count_at, event_count, event, event_name = latest_event
+        if event == "Player connection lost" and event_name:
+            player_count = len(active_names) if active_names else max(0, event_count - 1)
+        else:
+            player_count = event_count
         player_count_source = "player_event"
     else:
         player_count_at, player_count = None, 0

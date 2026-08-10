@@ -16,7 +16,7 @@ class FakeAdapter:
 
 class MonitorTests(unittest.IsolatedAsyncioTestCase):
     async def test_player_join_and_leave_notifications_are_compact(self) -> None:
-        adapter = FakeAdapter({"active": True, "player_count": 0, "player_events": []})
+        adapter = FakeAdapter({"active": True, "player_count": 0, "player_names": []})
         notifications: list[str] = []
 
         async def notify(message: str, color: int) -> None:
@@ -28,21 +28,21 @@ class MonitorTests(unittest.IsolatedAsyncioTestCase):
         adapter.data = {
             "active": True,
             "player_count": 1,
-            "player_events": [
-                {"timestamp": "2026-08-10T10:00:00+0700", "event": "Player joined", "name": None, "count": 1}
-            ],
+            "player_names": ["Alice"],
         }
         await monitor.check(adapter)
         await monitor.check(adapter)
 
         adapter.data = {
             "active": True,
-            "player_count": 0,
-            "player_events": [
-                {"timestamp": "2026-08-10T10:00:00+0700", "event": "Player joined", "name": "Alice", "count": 1},
-                {"timestamp": "2026-08-10T10:05:00+0700", "event": "Player connection lost", "name": "Alice", "count": 0},
-            ],
+            "player_count": 1,
+            "player_names": [],
         }
+        await monitor.check(adapter)
+        adapter.data = {"active": True, "player_count": 1, "player_names": ["Alice"]}
+        await monitor.check(adapter)
+        adapter.data = {"active": True, "player_count": 0, "player_names": []}
+        await monitor.check(adapter)
         await monitor.check(adapter)
 
         self.assertEqual(

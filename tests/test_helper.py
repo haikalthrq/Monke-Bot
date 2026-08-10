@@ -57,3 +57,30 @@ class ValheimParsingTests(unittest.TestCase):
         self.assertEqual(data["player_count"], 1)
         self.assertEqual(data["player_count_source"], "player_event")
         self.assertEqual(data["player_names"], ["Alice"])
+
+    def test_single_player_disconnect_gets_the_known_name(self) -> None:
+        log = "\n".join(
+            [
+                '2026-08-10T10:00:00+0700: Player joined server "MonkeEmpire" that has join code 123456, now 1 player(s)',
+                "2026-08-10T10:00:02+0700: Got character ZDOID from Alice : 1:1",
+                '2026-08-10T10:05:00+0700: Player connection lost server "MonkeEmpire" that has join code 123456, now 1 player(s)',
+            ]
+        )
+
+        data = parse_valheim(log)
+
+        self.assertEqual(data["player_count"], 0)
+        self.assertEqual(data["player_events"][-1]["name"], "Alice")
+
+    def test_join_name_can_arrive_after_an_interleaved_disconnect(self) -> None:
+        log = "\n".join(
+            [
+                '2026-08-10T10:00:00+0700: Player joined server "MonkeEmpire" that has join code 123456, now 2 player(s)',
+                '2026-08-10T10:00:05+0700: Player connection lost server "MonkeEmpire" that has join code 123456, now 2 player(s)',
+                "2026-08-10T10:00:10+0700: Got character ZDOID from Bidjisalak : 1:1",
+            ]
+        )
+
+        data = parse_valheim(log)
+
+        self.assertEqual(data["player_events"][0]["name"], "Bidjisalak")
