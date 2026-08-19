@@ -28,8 +28,10 @@ class CommandRegistrar:
         self.authorizer = authorizer
         self.adapters = adapters
 
-    async def _guard(self, interaction: discord.Interaction) -> bool:
-        return await self.authorizer.require(interaction)
+    async def _guard(self, interaction: discord.Interaction, operator: bool = False) -> bool:
+        if operator:
+            return await self.authorizer.require_operator(interaction)
+        return await self.authorizer.require_member(interaction)
 
     async def _defer(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=False)
@@ -74,7 +76,7 @@ class CommandRegistrar:
 
     def _register_start(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             try:
@@ -92,7 +94,7 @@ class CommandRegistrar:
 
     def _register_stop(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             try:
@@ -114,7 +116,7 @@ class CommandRegistrar:
 
     def _register_restart(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             try:
@@ -134,7 +136,7 @@ class CommandRegistrar:
 
     def _register_update(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             if not confirm:
@@ -213,7 +215,7 @@ class CommandRegistrar:
 
     def _register_backup(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             try:
@@ -256,7 +258,7 @@ class CommandRegistrar:
 
     def _register_restore(self, adapter: GameAdapter) -> None:
         async def callback(interaction: discord.Interaction, confirm: bool = False) -> None:
-            if not await self._guard(interaction):
+            if not await self._guard(interaction, operator=True):
                 return
             await self._defer(interaction)
             was_active = False
@@ -337,17 +339,28 @@ class CommandRegistrar:
             await self._defer(interaction)
             prefix = adapter.command_prefix
             commands = [
-                f"- `/{prefix}-status` server status and backups",
-                f"- `/{prefix}-start` and `/{prefix}-stop` server controls",
-                f"- `/{prefix}-restart confirm:true` restart the server",
-                f"- `/{prefix}-update confirm:true` update the server",
-                f"- `/{prefix}-players` recent players",
-                f"- `/{prefix}-join` connection information",
+                "**Start here**",
+                f"1. `/{prefix}-status` checks whether the server is online and shows the current join code.",
+                f"2. `/{prefix}-players` shows who is online.",
+                f"3. `/{prefix}-join` shows connection details. The password is never displayed.",
+                "",
+                "**Available to everyone**",
+                f"- `/{prefix}-status` server, player, join-code, and backup summary",
+                f"- `/{prefix}-players` current and recently updated player list",
+                f"- `/{prefix}-join` join code and connection information",
+                f"- `/{prefix}-backup-status` backup schedule and recent backups",
+                f"- `/{prefix}-health` VPS disk, memory, load, and server state",
+                f"- `/{prefix}-logs` latest sanitized server logs",
+                "",
+                "**Monke Operator only**",
+                f"- `/{prefix}-start` start the server",
+                f"- `/{prefix}-stop` stop the server; use `confirm:true` while players are online",
+                f"- `/{prefix}-restart` restart the server; use `confirm:true` while players are online",
+                f"- `/{prefix}-update` update the server; always requires `confirm:true`",
                 f"- `/{prefix}-backup` create a backup now",
-                f"- `/{prefix}-backup-status` backup history",
-                f"- `/{prefix}-restore confirm:true` restore the latest backup",
-                f"- `/{prefix}-health` host health",
-                f"- `/{prefix}-logs` latest logs",
+                f"- `/{prefix}-restore` restore the latest backup; may stop the server and requires `confirm:true`",
+                "",
+                "Ask a server admin for the `Monke Operator` role to run server operations.",
             ]
             await self._send(interaction, adapter, "\n".join(commands))
 

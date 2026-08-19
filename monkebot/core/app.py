@@ -34,9 +34,7 @@ class MonkeClient(discord.Client):
     async def setup_hook(self) -> None:
         authorizer = Authorizer(
             self.config.guild_id,
-            self.config.allowed_user_ids,
-            self.config.allowed_role_ids,
-            self.config.allow_all_members,
+            self.config.operator_role_ids,
         )
         CommandRegistrar(self.tree, authorizer, self.adapters).register()
         if self.config.guild_id:
