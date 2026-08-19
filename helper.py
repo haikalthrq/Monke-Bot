@@ -161,6 +161,105 @@ def journal(runtime: Runtime, lines: int = 400, output_format: str = "cat") -> s
     )
 
 
+def parse_valheim_players(log: str) -> dict[str, Any]:
+    records: list[tuple[int, str, dict[str, Any]]] = []
+    player_pattern = re.compile(
+        r'(?m)^(?P<timestamp>\S+).*?Player (?P<event>joined|connection lost) '
+        r'server "[^"]+".*?now (?P<count>\d+) player\(s\)'
+    )
+    character_pattern = re.compile(
+        r"(?m)^(?P<timestamp>\S+).*?Got character ZDOID from "
+        r"(?P<name>.+?)\s+:\s+\d+:\d+"
+    )
+    heartbeat_pattern = re.compile(
+        r"(?m)^(?P<timestamp>\S+).*?Connections (?P<count>\d+) ZDOS:"
+    )
+
+    for match in player_pattern.finditer(log):
+        records.append((match.start(), "player", match.groupdict()))
+    for match in character_pattern.finditer(log):
+        records.append((match.start(), "character", match.groupdict()))
+    for match in heartbeat_pattern.finditer(log):
+        records.append((match.start(), "heartbeat", match.groupdict()))
+    records.sort(key=lambda item: item[0])
+
+    active_names: dict[str, int] = {}
+    pending_joins: list[dict[str, Any]] = []
+    player_events: list[dict[str, Any]] = []
+    latest_heartbeat: tuple[int, str, int] | None = None
+    latest_event: tuple[int, str, int, str, str | None] | None = None
+
+    def remove_oldest() -> str | None:
+        if not active_names:
+            return None
+        name = min(active_names, key=active_names.get)
+        del active_names[name]
+        return name
+
+    for sequence, (_, kind, record) in enumerate(records):
+        if kind == "character":
+            name = record["name"].strip()
+            if not name:
+                continue
+            active_names[name] = sequence
+            if pending_joins:
+                pending_joins.pop(0)["name"] = name
+            continue
+
+        count = int(record["count"])
+        timestamp = record["timestamp"]
+        if kind == "heartbeat":
+            latest_heartbeat = (sequence, timestamp, count)
+            if count == 0:
+                active_names.clear()
+                pending_joins.clear()
+            while len(active_names) > count:
+                remove_oldest()
+            continue
+
+        event = "Player joined" if record["event"] == "joined" else "Player connection lost"
+        player_event: dict[str, Any] = {
+            "timestamp": timestamp,
+            "event": event,
+            "count": count,
+            "name": None,
+        }
+        player_events.append(player_event)
+        if event == "Player joined":
+            pending_joins.append(player_event)
+        else:
+            if count < len(active_names) or len(active_names) == 1:
+                player_event["name"] = remove_oldest()
+        latest_event = (sequence, timestamp, count, event, player_event["name"])
+
+    if latest_heartbeat and (latest_event is None or latest_heartbeat[0] >= latest_event[0]):
+        _, player_count_at, player_count = latest_heartbeat
+        player_count_source = "connections_heartbeat"
+    elif latest_event:
+        _, player_count_at, event_count, event, event_name = latest_event
+        if event == "Player connection lost" and event_name:
+            player_count = len(active_names) if active_names else max(0, event_count - 1)
+        else:
+            player_count = event_count
+        player_count_source = "player_event"
+    else:
+        player_count_at, player_count = None, 0
+        player_count_source = "unknown"
+
+    if player_count == 0:
+        active_names.clear()
+    while len(active_names) > player_count:
+        remove_oldest()
+
+    return {
+        "player_count": player_count,
+        "player_count_source": player_count_source,
+        "player_count_at": player_count_at,
+        "player_events": player_events[-5:],
+        "player_names": sorted(active_names, key=str.casefold),
+    }
+
+
 def parse_valheim(log: str) -> dict[str, Any]:
     active_sessions = re.findall(
         r'Session "([^"]+)" with join code (\d+) and IP ([^:\s]+):(\d+) is active',
@@ -170,35 +269,22 @@ def parse_valheim(log: str) -> dict[str, Any]:
         r'Session "([^"]+)" registered with join code (\d+)',
         log,
     )
-    player_events = re.findall(
-        r'(?m)^(\S+) .*?(Player joined|Player connection lost) server "[^"]+".*?now (\d+) player\(s\)',
+    player_sessions = re.findall(
+        r'(?m)Player (?:joined|connection lost) server "([^"]+)" '
+        r"that has join code (\d+)",
         log,
     )
-    connection_events = re.findall(r"Connections (\d+) ZDOS:", log)
     names = re.findall(r"Got character ZDOID from (.+?) : \d+:\d+", log)
+    players = parse_valheim_players(log)
     current = active_sessions[-1] if active_sessions else None
     registered = registered_sessions[-1] if registered_sessions else None
-    player_count = connection_events[-1] if connection_events else (player_events[-1][2] if player_events else 0)
-    player_count_source = "connections_heartbeat" if connection_events else "player_event"
-    player_count_at = None
-    if connection_events:
-        heartbeat_lines = re.findall(r"(?m)^(\S+) .*?Connections (\d+) ZDOS:", log)
-        if heartbeat_lines:
-            player_count_at = heartbeat_lines[-1][0]
-    elif player_events:
-        player_count_at = player_events[-1][0]
+    player_session = player_sessions[-1] if player_sessions else None
     return {
-        "server_name": current[0] if current else (registered[0] if registered else None),
-        "join_code": current[1] if current else (registered[1] if registered else None),
+        "server_name": current[0] if current else (registered[0] if registered else (player_session[0] if player_session else None)),
+        "join_code": current[1] if current else (registered[1] if registered else (player_session[1] if player_session else None)),
         "public_ip": current[2] if current else None,
         "port": int(current[3]) if current else 2456,
-        "player_count": int(player_count),
-        "player_count_source": player_count_source,
-        "player_count_at": player_count_at,
-        "player_events": [
-            {"timestamp": timestamp, "event": event, "count": int(count)}
-            for timestamp, event, count in player_events[-5:]
-        ],
+        **players,
         "recent_players": list(dict.fromkeys(reversed(names)))[:10],
     }
 
@@ -212,6 +298,7 @@ def parse_minecraft(log: str) -> dict[str, Any]:
         "public_ip": None,
         "port": 25565,
         "player_count": int(online_counts[-1]) if online_counts else 0,
+        "player_names": [],
         "recent_players": list(dict.fromkeys(reversed(joined)))[:10],
     }
 
@@ -221,7 +308,7 @@ def parse_game_status(runtime: Runtime, log: str) -> dict[str, Any]:
         return parse_valheim(log)
     if runtime.key == "minecraft":
         return parse_minecraft(log)
-    return {"server_name": runtime.key, "player_count": 0, "recent_players": []}
+    return {"server_name": runtime.key, "player_count": 0, "player_names": [], "recent_players": []}
 
 
 def status(runtime: Runtime) -> dict[str, Any]:
