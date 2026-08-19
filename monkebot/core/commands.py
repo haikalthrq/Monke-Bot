@@ -11,9 +11,8 @@ from monkebot.core.auth import Authorizer
 from monkebot.core.formatting import (
     format_bytes,
     format_log_lines,
-    format_timestamp,
     make_embed,
-    player_event_text,
+    players_text,
     safe_inline,
     status_text,
 )
@@ -164,11 +163,11 @@ class CommandRegistrar:
                 try:
                     backup = await adapter.backup_status()
                     backup_text = (
-                        f"**Backup files:** `{backup.get('count') or 0}`\n"
-                        f"**Latest backup:** `{safe_inline(backup.get('latest'), max_length=200)}`"
+                        f"**Backups:** `{backup.get('count') or 0}`\n"
+                        f"**Latest:** `{safe_inline(backup.get('latest'), max_length=200)}`"
                     )
                 except Exception:
-                    backup_text = "**Backup:** `Not available`"
+                    backup_text = "**Backups:** `Not available`"
                 await self._send(
                     interaction,
                     adapter,
@@ -187,35 +186,7 @@ class CommandRegistrar:
             await self._defer(interaction)
             try:
                 data = await adapter.status()
-                source = data.get("player_count_source", "unknown")
-                source_text = {
-                    "connections_heartbeat": "server connection heartbeat",
-                    "player_event": "latest join/leave event",
-                }.get(source, "Not available")
-                events = [event for event in data.get("player_events") or [] if event.get("name")]
-                event_lines = []
-                for event in reversed(events):
-                    event_lines.append(f"`{format_timestamp(event.get('timestamp'))}` | {player_event_text(event)}")
-                recent_events = "\n".join(event_lines) or "No recent connection activity."
-                player_count = data.get("player_count") or 0
-                player_word = "player" if player_count == 1 else "players"
-                player_names = data.get("player_names") or []
-                if player_names:
-                    names_text = "\n".join(
-                        f"- `{safe_inline(name, max_length=100)}`" for name in player_names
-                    )
-                elif player_count:
-                    names_text = "Player names are not available."
-                else:
-                    names_text = "No players online."
-                await self._send(
-                    interaction,
-                    adapter,
-                    f"**Online players**\n`{player_count}` {player_word}\n{names_text}\n\n"
-                    f"**Data source**\n{source_text}\n\n"
-                    f"**Last updated**\n`{format_timestamp(data.get('player_count_at'))}`\n\n"
-                    f"**Recent activity**\n{recent_events}",
-                )
+                await self._send(interaction, adapter, players_text(data))
             except Exception as exc:
                 await self._send_error(interaction, exc)
 
@@ -230,8 +201,9 @@ class CommandRegistrar:
                 data = await adapter.status()
                 lines = [f"**Server:** `{safe_inline(data.get('server_name'), adapter.display_name, 100)}`"]
                 lines.append(f"**Join code:** `{safe_inline(data.get('join_code'), max_length=100)}`")
-                address = f"{data['public_ip']}:{data.get('port', 0)}" if data.get("public_ip") else None
-                lines.append(f"**IP:** `{safe_inline(address, max_length=100)}`")
+                if data.get("public_ip"):
+                    address = f"{data['public_ip']}:{data.get('port', 0)}"
+                    lines.append(f"**IP:** `{safe_inline(address, max_length=100)}`")
                 lines.append("Password is not displayed by the bot.")
                 await self._send(interaction, adapter, "\n".join(lines))
             except Exception as exc:
@@ -268,14 +240,13 @@ class CommandRegistrar:
                 data = await adapter.backup_status()
                 timer = "Active" if data.get("timer_active") else "Inactive"
                 files = "\n".join(
-                    f"- `{safe_inline(item, max_length=100)}`" for item in data.get("files") or []
+                    f"- `{safe_inline(item, max_length=100)}`" for item in reversed((data.get("files") or [])[-5:])
                 ) or "No backups yet."
                 await self._send(
                     interaction,
                     adapter,
                     f"**Backup timer:** `{timer}`\n"
-                    f"**Total files:** `{data.get('count') or 0}`\n"
-                    f"**Latest backup:** `{safe_inline(data.get('latest'), max_length=200)}`\n\n"
+                    f"**Total files:** `{data.get('count') or 0}`\n\n"
                     f"**Recent backups**\n{files}",
                 )
             except Exception as exc:
@@ -302,15 +273,15 @@ class CommandRegistrar:
                 restored = await adapter.restore()
                 if was_active:
                     await adapter.start()
-                    state = "Server brought back online."
+                    state = "Starting"
                 else:
-                    state = "Server remains offline."
+                    state = "Offline"
                 await self._send(
                     interaction,
                     adapter,
                     f"**Restore completed**\n"
                     f"**Backup:** `{safe_inline(restored.get('restored'), max_length=200)}`\n"
-                    f"**Server:** {state}",
+                    f"**Server state:** `{state}`",
                     0x57F287,
                 )
             except Exception as exc:
