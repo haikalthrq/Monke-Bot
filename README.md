@@ -1,58 +1,105 @@
-# MonkeHost Discord Bot
+# Monke-Bot
 
-Modular Discord control bot for Valheim and Minecraft. The bot uses slash
-commands generated from the enabled game adapters. Valheim commands start
-with `v-`; Minecraft commands will start with `mc-`.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-Slash%20commands-5865F2?logo=discord&logoColor=white)](https://discord.com/)
+[![Valheim](https://img.shields.io/badge/Valheim-Self--hosted-8B5CF6)](#current-support)
 
-- `/v-start`
-- `/v-stop`
-- `/v-restart`
-- `/v-update`
-- `/v-status`
-- `/v-players`
-- `/v-join`
-- `/v-backup`
-- `/v-backup-status`
-- `/v-restore`
-- `/v-health`
-- `/v-logs`
-- `/v-help`
+**A secure Discord control plane for self-hosted game servers.**
 
-Set `ENABLED_GAMES=valheim,minecraft` after the Minecraft runtime and helper
-configuration are ready to register the `/mc-*` command set.
+Monke-Bot lets a Discord guild operate a Valheim server without exposing SSH,
+server scripts, tokens, or root access to Discord users. It uses native slash
+commands, systemd, an allowlisted privileged helper, and readable Discord
+embeds for day-to-day server administration.
+
+```text
+/v-status     Check server, player, join-code, and backup status
+/v-players    See the current player list
+/v-backup     Create a backup on demand
+/v-health     Inspect host disk, memory, and load
+```
+
+## Why Monke-Bot?
+
+- **Discord-native operations:** control the server with slash commands instead
+  of giving players shell access.
+- **Safe-by-design privileges:** the bot runs as an unprivileged system user and
+  can only invoke a fixed, root-owned helper.
+- **Useful live context:** player names, server status, join code, backups, host
+  health, and sanitized logs are available in Discord.
+- **Self-hosted:** systemd, SteamCMD, and rclone stay on your VPS under your
+  control.
+- **Extensible:** game adapters keep the Discord command layer separate from
+  game-specific runtime details.
+
+## Current Support
+
+| Game | Status | Command prefix |
+| --- | --- | --- |
+| Valheim | Ready to self-host | `/v-*` |
+| Minecraft | Adapter scaffold; enable after its runtime is configured | `/mc-*` |
+
+## What It Looks Like
+
+`/v-status` keeps the everyday status view intentionally compact:
+
+```text
+Server: MyValheimServer
+Status: ONLINE
+Players: 2
+Join code: 123456
+
+Backups: 10
+Latest: MyValheimServer-20260820T120000Z.tar.gz
+```
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `/v-status` | Server state, player count, join code, and latest backup |
+| `/v-players` | Current player list and update time |
+| `/v-join` | Join code and connection information |
+| `/v-start` | Start the server |
+| `/v-stop` | Gracefully stop the server; requires confirmation when players are online |
+| `/v-restart` | Restart the server; requires confirmation when players are online |
+| `/v-update` | Update the dedicated server through SteamCMD |
+| `/v-backup` | Run an on-demand backup |
+| `/v-backup-status` | Backup timer state and recent backups |
+| `/v-restore` | Restore the latest backup; requires confirmation |
+| `/v-health` | Disk, memory, load, and compact server state |
+| `/v-logs` | Recent sanitized server logs |
+| `/v-help` | In-Discord command reference |
 
 ## Architecture
 
 ```text
-bot.py
-monkebot/core/       Discord client, auth, commands, monitor, helper client
-monkebot/games/      Valheim and Minecraft adapters
-helper.py            Root-owned generic game runtime helper
+Discord slash command
+        |
+        v
+monke-bot.service                 Runs as the unprivileged monke-bot user
+        |
+        v  sudo -n, one allowlisted command
+/usr/local/libexec/monke-bot-helper
+        |
+        +-- systemctl   Valheim lifecycle
+        +-- journalctl  Status and sanitized logs
+        +-- SteamCMD    Game updates
+        +-- rclone      Backup and restore
 ```
 
-The command layer only knows the adapter interface. Service names, update
-methods, log parsing, and backup locations are selected by the helper runtime
-configuration for each game.
+The Discord layer only knows the adapter interface. The helper owns service
+names, update behavior, log parsing, and backup locations.
 
-The runtime is separate from the Valheim repository:
+## Quick Start
 
-- Bot code: `/opt/monke-bot`
-- Bot config: `/etc/monke-bot`
-- Bot service: `monke-bot.service`
-- Privileged helper: `/usr/local/libexec/monke-bot-helper`
-
-The repository contains no Discord token, Valheim password, OAuth token, or
-live server data. The bot runs as a dedicated `monke-bot` user and can only
-invoke the fixed actions implemented by the root-owned helper.
-
-## Discord Application
+### 1. Create a Discord application
 
 Create a Discord application and bot, then install it with these scopes:
 
 - `bot`
 - `applications.commands`
 
-Required bot permissions:
+Grant only these bot permissions:
 
 - View Channels
 - Send Messages
@@ -61,33 +108,32 @@ Required bot permissions:
 
 No privileged intents or Administrator permission are required.
 
-## Install
+### 2. Install on the VPS
 
-From this repository on the Valheim VPS:
+Run the installer from this repository on the Valheim VPS:
 
 ```bash
-sudo VALHEIM_USER=haikalthoriqa \
-  VALHEIM_DIR=/home/haikalthoriqa/valheim \
+git clone https://github.com/haikalthrq/Monke-Bot.git
+cd Monke-Bot
+
+sudo VALHEIM_USER=your-valheim-user \
+  VALHEIM_DIR=/path/to/valheim \
   ./install.sh
 ```
 
-The default runtime path is `/opt/monke-bot`. Set `BOT_DIR` if a different
-location is needed.
+The installer creates the dedicated system user, virtual environment, helper,
+restricted sudo rule, and `monke-bot.service`.
 
-The installer creates the system user, Python virtualenv, helper, restricted
-sudo rule, and systemd service. It does not start the bot until credentials are
-configured.
-
-## Credentials
+### 3. Configure the bot
 
 Edit `/etc/monke-bot/bot.env`:
 
 ```text
-DISCORD_TOKEN=the-bot-token
+DISCORD_TOKEN=your-bot-token
 DISCORD_GUILD_ID=your-discord-server-id
 ALLOWED_USER_IDS=your-discord-user-id
 ALLOWED_ROLE_IDS=
-ALLOW_ALL_GUILD_MEMBERS=true
+ALLOW_ALL_GUILD_MEMBERS=false
 STATUS_CHANNEL_ID=optional-notification-channel-id
 ENABLED_GAMES=valheim
 NOTIFY_BACKUP_SUCCESS=false
@@ -95,10 +141,15 @@ MONITOR_INTERVAL=30
 HELPER_PATH=/usr/local/libexec/monke-bot-helper
 ```
 
-Use Discord Developer Mode to copy the guild, user, role, and channel IDs.
-Keep `DISCORD_TOKEN` private and never commit `bot.env`.
+Use Discord Developer Mode to copy guild, user, role, and channel IDs. Keep
+`DISCORD_TOKEN` private and never commit `bot.env`.
 
-Start and inspect the service:
+> [!WARNING]
+> Setting `ALLOW_ALL_GUILD_MEMBERS=true` lets every member of the configured
+> guild run destructive commands such as stop, update, and restore. Prefer
+> explicit user or role IDs for production servers.
+
+### 4. Start it
 
 ```bash
 sudo systemctl start monke-bot.service
@@ -106,7 +157,48 @@ sudo systemctl status monke-bot.service
 sudo journalctl -u monke-bot.service -f
 ```
 
-Commands are synced to `DISCORD_GUILD_ID` immediately. Only configured user
-IDs or role IDs can run commands unless `ALLOW_ALL_GUILD_MEMBERS=true`. In
-that mode every member of the configured guild can run commands, including
-server stop, restart, update, and restore commands.
+Commands are synced to `DISCORD_GUILD_ID` at startup.
+
+## Security Model
+
+- The Discord bot runs as the dedicated `monke-bot` system user.
+- The bot can call only `/usr/local/libexec/monke-bot-helper` through a narrow
+  `sudo` rule.
+- The root-owned helper accepts fixed game actions rather than arbitrary shell
+  commands.
+- Secrets, server passwords, OAuth tokens, and live server data stay out of the
+  repository.
+- Log output redacts common token and password patterns before it reaches
+  Discord.
+
+Read [SECURITY.md](SECURITY.md) before deploying this bot to a public guild.
+
+## Development
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Run the full suite before submitting a change. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## Runtime Paths
+
+| Path | Purpose |
+| --- | --- |
+| `/opt/monke-bot` | Bot code and Python virtual environment |
+| `/etc/monke-bot/bot.env` | Discord token and bot configuration |
+| `/etc/monke-bot/helper.env` | Game runtime configuration |
+| `monke-bot.service` | Discord bot systemd service |
+| `/usr/local/libexec/monke-bot-helper` | Root-owned privileged helper |
+
+## Contributing
+
+Issues and pull requests are welcome. Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
+
+## License
+
+Monke-Bot is released under the [MIT License](LICENSE).
