@@ -21,8 +21,8 @@ steps, expected impact, and any suggested mitigation.
 
 - Keep `DISCORD_TOKEN` in `/etc/monke-bot/bot.env` with restrictive file
   permissions.
-- Prefer `ALLOWED_USER_IDS` or `ALLOWED_ROLE_IDS` over allowing all guild
-  members.
+- Assign `OPERATOR_ROLE_IDS` only to trusted administrators; all guild members
+  can use read-only information commands.
 - Grant the bot only the Discord channel permissions it needs.
 - Rotate the bot token immediately if it is exposed.
 - Keep the helper root-owned and do not broaden its sudo allowlist.

@@ -77,23 +77,31 @@ def format_timestamp(value: str | None) -> str:
         return "Not available"
 
 
+def players_text(data: dict[str, Any]) -> str:
+    player_count = int(data.get("player_count", 0) or 0)
+    names = [
+        safe_inline(name, max_length=100)
+        for name in data.get("player_names") or []
+        if str(name).strip()
+    ]
+    if names:
+        names_text = "\n".join(f"- `{name}`" for name in names)
+    elif player_count:
+        names_text = "Player names are not available yet."
+    else:
+        names_text = "No players online."
+    return (
+        f"**Online players:** `{player_count}`\n{names_text}\n\n"
+        f"**Updated:** `{format_timestamp(data.get('player_count_at'))}`"
+    )
+
+
 def status_text(data: dict[str, Any], display_name: str) -> str:
     state = "ONLINE" if data.get("active") else "OFFLINE"
-    player_source = data.get("player_count_source")
-    player_label = {
-        "connections_heartbeat": "Players (heartbeat)",
-        "player_event": "Players (last event)",
-    }.get(player_source, "Players")
     lines = [
-        f"**Status:** `{state}`",
         f"**Server:** `{safe_inline(data.get('server_name'), display_name, 100)}`",
-        f"**{player_label}:** `{data.get('player_count') or 0}`",
-        f"**PID:** `{data.get('pid') or 0}`",
-        f"**Memory:** `{format_bytes(int(data.get('memory_bytes', 0) or 0))}`",
+        f"**Status:** `{state}`",
+        f"**Players:** `{data.get('player_count') or 0}`",
+        f"**Join code:** `{safe_inline(data.get('join_code'), max_length=100)}`",
     ]
-    if data.get("join_code"):
-        lines.append(f"**Join code:** `{safe_inline(data['join_code'], max_length=100)}`")
-    if data.get("public_ip"):
-        address = f"{data['public_ip']}:{data.get('port', 0)}"
-        lines.append(f"**IP:** `{safe_inline(address, max_length=100)}`")
     return "\n".join(lines)

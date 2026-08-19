@@ -38,9 +38,7 @@ def parse_bool(value: str, default: bool = False) -> bool:
 class BotConfig:
     token: str
     guild_id: int
-    allowed_user_ids: frozenset[int]
-    allowed_role_ids: frozenset[int]
-    allow_all_members: bool
+    operator_role_ids: frozenset[int]
     status_channel_id: int
     enabled_games: tuple[str, ...]
     notify_backup_success: bool
@@ -57,9 +55,7 @@ class BotConfig:
         return cls(
             token=os.getenv("DISCORD_TOKEN", "").strip(),
             guild_id=parse_int(os.getenv("DISCORD_GUILD_ID", "")),
-            allowed_user_ids=parse_ids(os.getenv("ALLOWED_USER_IDS", "")),
-            allowed_role_ids=parse_ids(os.getenv("ALLOWED_ROLE_IDS", "")),
-            allow_all_members=parse_bool(os.getenv("ALLOW_ALL_GUILD_MEMBERS", "false")),
+            operator_role_ids=parse_ids(os.getenv("OPERATOR_ROLE_IDS", "")),
             status_channel_id=parse_int(os.getenv("STATUS_CHANNEL_ID", "")),
             enabled_games=games or ("valheim",),
             notify_backup_success=parse_bool(os.getenv("NOTIFY_BACKUP_SUCCESS", "false")),
@@ -70,5 +66,5 @@ class BotConfig:
     def validate(self) -> None:
         if not self.token or self.token == "CHANGE_ME":
             raise ValueError("DISCORD_TOKEN is not configured")
-        if not self.allow_all_members and not self.allowed_user_ids and not self.allowed_role_ids:
-            raise ValueError("Configure ALLOWED_USER_IDS or ALLOWED_ROLE_IDS")
+        if not self.operator_role_ids:
+            raise ValueError("Configure OPERATOR_ROLE_IDS")

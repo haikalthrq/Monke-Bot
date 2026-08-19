@@ -54,21 +54,21 @@ Latest: MyValheimServer-20260820T120000Z.tar.gz
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `/v-status` | Server state, player count, join code, and latest backup |
-| `/v-players` | Current player list and update time |
-| `/v-join` | Join code and connection information |
-| `/v-start` | Start the server |
-| `/v-stop` | Gracefully stop the server; requires confirmation when players are online |
-| `/v-restart` | Restart the server; requires confirmation when players are online |
-| `/v-update` | Update the dedicated server through SteamCMD |
-| `/v-backup` | Run an on-demand backup |
-| `/v-backup-status` | Backup timer state and recent backups |
-| `/v-restore` | Restore the latest backup; requires confirmation |
-| `/v-health` | Disk, memory, load, and compact server state |
-| `/v-logs` | Recent sanitized server logs |
-| `/v-help` | In-Discord command reference |
+| Command | Access | Purpose |
+| --- | --- | --- |
+| `/v-status` | Everyone | Server state, player count, join code, and latest backup |
+| `/v-players` | Everyone | Current player list and update time |
+| `/v-join` | Everyone | Join code and connection information |
+| `/v-backup-status` | Everyone | Backup timer state and recent backups |
+| `/v-health` | Everyone | Disk, memory, load, and compact server state |
+| `/v-logs` | Everyone | Recent sanitized server logs |
+| `/v-help` | Everyone | In-Discord command reference and first-use guide |
+| `/v-start` | Operator | Start the server |
+| `/v-stop` | Operator | Gracefully stop the server; requires confirmation when players are online |
+| `/v-restart` | Operator | Restart the server; requires confirmation when players are online |
+| `/v-update` | Operator | Update the dedicated server through SteamCMD |
+| `/v-backup` | Operator | Run an on-demand backup |
+| `/v-restore` | Operator | Restore the latest backup; requires confirmation |
 
 ## Architecture
 
@@ -131,9 +131,8 @@ Edit `/etc/monke-bot/bot.env`:
 ```text
 DISCORD_TOKEN=your-bot-token
 DISCORD_GUILD_ID=your-discord-server-id
-ALLOWED_USER_IDS=your-discord-user-id
-ALLOWED_ROLE_IDS=
-ALLOW_ALL_GUILD_MEMBERS=false
+# Every guild member can use information commands. This role controls server operations.
+OPERATOR_ROLE_IDS=your-operator-role-id
 STATUS_CHANNEL_ID=optional-notification-channel-id
 ENABLED_GAMES=valheim
 NOTIFY_BACKUP_SUCCESS=false
@@ -145,9 +144,8 @@ Use Discord Developer Mode to copy guild, user, role, and channel IDs. Keep
 `DISCORD_TOKEN` private and never commit `bot.env`.
 
 > [!WARNING]
-> Setting `ALLOW_ALL_GUILD_MEMBERS=true` lets every member of the configured
-> guild run destructive commands such as stop, update, and restore. Prefer
-> explicit user or role IDs for production servers.
+> All members of the configured guild can use information commands. Assign
+> `Monke Operator` only to trusted administrators who need to change the server.
 
 ### 4. Start it
 
@@ -166,6 +164,8 @@ Commands are synced to `DISCORD_GUILD_ID` at startup.
   `sudo` rule.
 - The root-owned helper accepts fixed game actions rather than arbitrary shell
   commands.
+- All guild members can inspect server information; only the Operator role can
+  run lifecycle, update, backup, or restore actions.
 - Secrets, server passwords, OAuth tokens, and live server data stay out of the
   repository.
 - Log output redacts common token and password patterns before it reaches
