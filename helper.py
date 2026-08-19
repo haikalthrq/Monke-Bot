@@ -269,13 +269,19 @@ def parse_valheim(log: str) -> dict[str, Any]:
         r'Session "([^"]+)" registered with join code (\d+)',
         log,
     )
+    player_sessions = re.findall(
+        r'(?m)Player (?:joined|connection lost) server "([^"]+)" '
+        r"that has join code (\d+)",
+        log,
+    )
     names = re.findall(r"Got character ZDOID from (.+?) : \d+:\d+", log)
     players = parse_valheim_players(log)
     current = active_sessions[-1] if active_sessions else None
     registered = registered_sessions[-1] if registered_sessions else None
+    player_session = player_sessions[-1] if player_sessions else None
     return {
-        "server_name": current[0] if current else (registered[0] if registered else None),
-        "join_code": current[1] if current else (registered[1] if registered else None),
+        "server_name": current[0] if current else (registered[0] if registered else (player_session[0] if player_session else None)),
+        "join_code": current[1] if current else (registered[1] if registered else (player_session[1] if player_session else None)),
         "public_ip": current[2] if current else None,
         "port": int(current[3]) if current else 2456,
         **players,

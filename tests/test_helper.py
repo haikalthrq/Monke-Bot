@@ -84,3 +84,11 @@ class ValheimParsingTests(unittest.TestCase):
         data = parse_valheim(log)
 
         self.assertEqual(data["player_events"][0]["name"], "Bidjisalak")
+
+    def test_join_code_is_read_from_player_events(self) -> None:
+        log = '2026-08-10T10:00:00+0700: Player joined server "MonkeEmpire" that has join code 735150, now 1 player(s)'
+
+        data = parse_valheim(log)
+
+        self.assertEqual(data["server_name"], "MonkeEmpire")
+        self.assertEqual(data["join_code"], "735150")

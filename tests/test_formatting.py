@@ -33,6 +33,11 @@ class FormattingTests(unittest.TestCase):
     def test_status_uses_generic_player_label_without_source(self) -> None:
         output = status_text({"active": False, "player_count": 0}, "Valheim")
         self.assertIn("**Players:** `0`", output)
+        self.assertIn("**Join code:** `Not available`", output)
+
+    def test_status_includes_join_code(self) -> None:
+        output = status_text({"active": True, "join_code": "735150"}, "Valheim")
+        self.assertIn("**Join code:** `735150`", output)
 
     def test_player_event_text_is_compact(self) -> None:
         self.assertEqual(

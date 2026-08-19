@@ -102,9 +102,8 @@ def status_text(data: dict[str, Any], display_name: str) -> str:
         f"**{player_label}:** `{data.get('player_count') or 0}`",
         f"**PID:** `{data.get('pid') or 0}`",
         f"**Memory:** `{format_bytes(int(data.get('memory_bytes', 0) or 0))}`",
+        f"**Join code:** `{safe_inline(data.get('join_code'), max_length=100)}`",
     ]
-    if data.get("join_code"):
-        lines.append(f"**Join code:** `{safe_inline(data['join_code'], max_length=100)}`")
     if data.get("public_ip"):
         address = f"{data['public_ip']}:{data.get('port', 0)}"
         lines.append(f"**IP:** `{safe_inline(address, max_length=100)}`")
