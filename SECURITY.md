@@ -1,7 +1,5 @@
 # Security Policy
 
-## Supported Versions
-
 Security fixes are applied to the active development branch and released
 through the default branch.
 

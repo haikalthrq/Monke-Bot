@@ -6,6 +6,7 @@ Thanks for helping improve Monke-Bot.
 
 - Search existing issues and pull requests before opening a new one.
 - Open an issue first for large features or behavior changes.
+- Do not open public issues for security vulnerabilities; follow [SECURITY.md](SECURITY.md).
 - Never include Discord tokens, server passwords, rclone credentials, IP
   addresses, or live server data in issues, commits, or screenshots.
 
@@ -35,7 +36,3 @@ python3 -m venv .venv
 - Explain how the change was tested.
 - Keep generated files and local environment files out of the pull request.
 
-## Security Reports
-
-Do not open a public issue for a vulnerability. Follow the process in
-[SECURITY.md](SECURITY.md).

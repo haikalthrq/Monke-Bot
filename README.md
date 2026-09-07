@@ -18,17 +18,17 @@ embeds for day-to-day server administration.
 /v-health     Inspect host disk, memory, and load
 ```
 
-## Why Monke-Bot?
+## Features
 
-- **Discord-native operations:** control the server with slash commands instead
+- **Discord-native operations:** Control the server with slash commands instead
   of giving players shell access.
-- **Safe-by-design privileges:** the bot runs as an unprivileged system user and
+- **Safe-by-design privileges:** The bot runs as an unprivileged system user and
   can only invoke a fixed, root-owned helper.
-- **Useful live context:** player names, server status, join code, backups, host
+- **Live context:** Player names, server status, join code, backups, host
   health, and sanitized logs are available in Discord.
-- **Self-hosted:** systemd, SteamCMD, and rclone stay on your VPS under your
+- **Self-hosted:** Systemd, SteamCMD, and rclone stay on your VPS under your
   control.
-- **Extensible:** game adapters keep the Discord command layer separate from
+- **Extensible:** Game adapters keep the Discord command layer separate from
   game-specific runtime details.
 
 ## Current Support
@@ -38,9 +38,9 @@ embeds for day-to-day server administration.
 | Valheim | Ready to self-host | `/v-*` |
 | Minecraft | Adapter scaffold; enable after its runtime is configured | `/mc-*` |
 
-## What It Looks Like
+## Example Output
 
-`/v-status` keeps the everyday status view intentionally compact:
+`/v-status` output:
 
 ```text
 Server: MyValheimServer
@@ -147,7 +147,7 @@ Use Discord Developer Mode to copy guild, user, role, and channel IDs. Keep
 > All members of the configured guild can use information commands. Assign
 > `Monke Operator` only to trusted administrators who need to change the server.
 
-### 4. Start it
+### 4. Start the bot
 
 ```bash
 sudo systemctl start monke-bot.service
