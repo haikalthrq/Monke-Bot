@@ -12,6 +12,7 @@ commands, systemd, an allowlisted privileged helper, and readable Discord
 embeds for day-to-day server administration.
 
 ```text
+/v-panel      Open interactive control panel with action buttons
 /v-status     Check server, player, join-code, and backup status
 /v-players    See the current player list
 /v-backup     Create a backup on demand
@@ -56,6 +57,7 @@ Latest: MyValheimServer-20260820T120000Z.tar.gz
 
 | Command | Access | Purpose |
 | --- | --- | --- |
+| `/v-panel` | Everyone | Interactive control panel with buttons for start, stop, restart, and join info |
 | `/v-status` | Everyone | Server state, player count, join code, and latest backup |
 | `/v-players` | Everyone | Current player list and update time |
 | `/v-join` | Everyone | Join code and connection information |
@@ -64,11 +66,11 @@ Latest: MyValheimServer-20260820T120000Z.tar.gz
 | `/v-logs` | Everyone | Recent sanitized server logs |
 | `/v-help` | Everyone | In-Discord command reference and first-use guide |
 | `/v-start` | Operator | Start the server |
-| `/v-stop` | Operator | Gracefully stop the server; requires confirmation when players are online |
-| `/v-restart` | Operator | Restart the server; requires confirmation when players are online |
-| `/v-update` | Operator | Update the dedicated server through SteamCMD |
+| `/v-stop` | Operator | Gracefully stop the server; prompts for confirmation or buttons when players are online |
+| `/v-restart` | Operator | Restart the server; prompts for confirmation or buttons when players are online |
+| `/v-update` | Operator | Update the dedicated server through SteamCMD; prompts for confirmation |
 | `/v-backup` | Operator | Run an on-demand backup |
-| `/v-restore` | Operator | Restore the latest backup; requires confirmation |
+| `/v-restore` | Operator | Restore the latest backup; prompts for confirmation |
 
 ## Architecture
 

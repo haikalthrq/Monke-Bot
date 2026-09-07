@@ -1,1 +1,1 @@
-"""Game adapters supported by MonkeHost."""
+"""Game adapters supported by Monke-Bot."""

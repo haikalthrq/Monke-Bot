@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Allowlisted root helper shared by all MonkeHost game adapters."""
+"""Allowlisted root helper shared by all Monke-Bot game adapters."""
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 import os
@@ -14,12 +15,56 @@ import sys
 import tempfile
 from typing import Any
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Non-Unix compatibility for unit testing
+
 
 CONFIG_FILE = Path(os.environ.get("MONKE_BOT_HELPER_CONFIG", "/etc/monke-bot/helper.env"))
+LOCK_DIR = Path(
+    os.environ.get(
+        "MONKE_BOT_LOCK_DIR",
+        "/run/monke-bot" if Path("/run").is_dir() else tempfile.gettempdir(),
+    )
+)
 
 
 class HelperError(RuntimeError):
     pass
+
+
+@contextmanager
+def operation_lock(game: str, action: str):
+    if fcntl is None:
+        yield
+        return
+    try:
+        LOCK_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    lock_file = LOCK_DIR / f"{game}.lock"
+    try:
+        fd = os.open(str(lock_file), os.O_CREAT | os.O_RDWR, 0o644)
+    except OSError as exc:
+        raise HelperError(f"could not open lock file: {exc}") from exc
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (BlockingIOError, OSError):
+        os.close(fd)
+        raise HelperError(f"another operation is currently in progress for {game}")
+
+    try:
+        os.ftruncate(fd, 0)
+        os.write(fd, f"pid={os.getpid()} action={action}\n".encode("utf-8"))
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        os.close(fd)
 
 
 def load_env(path: Path) -> dict[str, str]:
@@ -470,16 +515,18 @@ def main() -> int:
             if not 5 <= lines <= 50:
                 raise HelperError("log line count must be between 5 and 50")
             return output({"data": {"lines": journal(runtime, lines).splitlines()}})
-        if action in {"start", "stop", "restart"}:
-            systemctl(action, runtime, timeout=120 if action != "start" else 30)
-            return output({"data": status(runtime)})
-        if action == "backup":
-            command(["systemctl", "start", runtime.backup_service], timeout=180)
-            return output({"data": backup_status(runtime)})
-        if action == "restore":
-            return output({"data": restore_world(runtime)})
-        if action == "update":
-            return output({"data": update(runtime)})
+        if action in {"start", "stop", "restart", "backup", "restore", "update"}:
+            with operation_lock(game, action):
+                if action in {"start", "stop", "restart"}:
+                    systemctl(action, runtime, timeout=120 if action != "start" else 30)
+                    return output({"data": status(runtime)})
+                if action == "backup":
+                    command(["systemctl", "start", runtime.backup_service], timeout=180)
+                    return output({"data": backup_status(runtime)})
+                if action == "restore":
+                    return output({"data": restore_world(runtime)})
+                if action == "update":
+                    return output({"data": update(runtime)})
         raise HelperError("unknown action")
     except (HelperError, ValueError) as exc:
         return output({"error": str(exc)}, 1)

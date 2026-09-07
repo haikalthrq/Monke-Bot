@@ -29,11 +29,17 @@ class Authorizer:
     async def require_member(self, interaction: discord.Interaction) -> bool:
         if self.is_member(interaction):
             return True
-        await interaction.response.send_message("This bot is only available in its configured Discord server.")
+        await interaction.response.send_message(
+            "This bot is only available in its configured Discord server.",
+            ephemeral=True,
+        )
         return False
 
     async def require_operator(self, interaction: discord.Interaction) -> bool:
         if self.can_operate(interaction):
             return True
-        await interaction.response.send_message("This command requires the `Monke Operator` role.")
+        await interaction.response.send_message(
+            "This command requires the `Monke Operator` role.",
+            ephemeral=True,
+        )
         return False

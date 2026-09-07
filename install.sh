@@ -89,6 +89,6 @@ systemctl daemon-reload
 systemctl enable monke-bot.service
 
 echo
-echo "MonkeHost Discord bot installed in $BOT_DIR."
+echo "Monke-Bot Discord bot installed in $BOT_DIR."
 echo "Fill /etc/monke-bot/bot.env, then start with:"
 echo "  systemctl start monke-bot.service"

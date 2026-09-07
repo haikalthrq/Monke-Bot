@@ -22,14 +22,14 @@ class RegistryTests(unittest.TestCase):
 
     def test_valheim_commands_use_v_namespace(self) -> None:
         names = self.command_names(("valheim",))
-        self.assertEqual(len(names), 13)
+        self.assertEqual(len(names), 14)
         self.assertTrue(all(name.startswith("v-") for name in names))
 
     def test_minecraft_commands_are_separate(self) -> None:
         names = self.command_names(("valheim", "minecraft"))
-        self.assertEqual(len(names), 26)
-        self.assertEqual(sum(name.startswith("v-") for name in names), 13)
-        self.assertEqual(sum(name.startswith("mc-") for name in names), 13)
+        self.assertEqual(len(names), 28)
+        self.assertEqual(sum(name.startswith("v-") for name in names), 14)
+        self.assertEqual(sum(name.startswith("mc-") for name in names), 14)
 
     def test_commands_use_the_expected_access_tier(self) -> None:
         class RecordingAuthorizer:
@@ -50,6 +50,7 @@ class RegistryTests(unittest.TestCase):
         CommandRegistrar(tree, authorizer, adapters).register()
 
         expected_tiers = {
+            "v-panel": "member",
             "v-status": "member",
             "v-players": "member",
             "v-join": "member",

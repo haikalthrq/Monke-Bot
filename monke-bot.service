@@ -1,5 +1,5 @@
 [Unit]
-Description=MonkeHost Discord Control Bot
+Description=Monke-Bot Discord Control Bot
 Wants=network-online.target
 After=network-online.target valheim.service
 

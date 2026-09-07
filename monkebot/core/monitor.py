@@ -26,13 +26,22 @@ def service_lifecycle(data: dict[str, object]) -> str:
 
 
 class GameMonitor:
-    def __init__(self, adapters: dict[str, GameAdapter], notify: Notify, interval: int, backup_success: bool) -> None:
+    def __init__(
+        self,
+        adapters: dict[str, GameAdapter],
+        notify: Notify,
+        interval: int,
+        backup_success: bool,
+        presence_updater: Callable[[str], Awaitable[None]] | None = None,
+    ) -> None:
         self.adapters = adapters
         self.notify = notify
         self.interval = interval
         self.backup_success = backup_success
+        self.presence_updater = presence_updater
         self.last_state: dict[str, ServerState] = {}
         self.last_backup: dict[str, str | None] = {}
+        self.backup_ticks: dict[str, int] = {}
         self.player_presence: dict[str, dict[str, PlayerPresence]] = {}
         self.player_presence_initialized: set[str] = set()
 
@@ -101,11 +110,21 @@ class GameMonitor:
             await self._check_player_presence(adapter, data)
             self.last_state[adapter.key] = state
             if self.backup_success:
-                backup = await adapter.backup_status()
-                latest = backup.get("latest")
-                previous_backup = self.last_backup.get(adapter.key)
-                if latest and previous_backup and latest != previous_backup:
-                    await self.notify(f"{adapter.display_name} backup completed: `{latest}`.", 0x57F287)
-                self.last_backup[adapter.key] = latest
+                ticks = self.backup_ticks.get(adapter.key, 0)
+                if ticks == 0 or ticks >= 10:
+                    self.backup_ticks[adapter.key] = 1
+                    backup = await adapter.backup_status()
+                    latest = backup.get("latest")
+                    previous_backup = self.last_backup.get(adapter.key)
+                    if latest and previous_backup and latest != previous_backup:
+                        await self.notify(f"{adapter.display_name} backup completed: `{latest}`.", 0x57F287)
+                    self.last_backup[adapter.key] = latest
+                else:
+                    self.backup_ticks[adapter.key] = ticks + 1
+
+            if self.presence_updater:
+                status_label = "ONLINE" if data.get("active") else "OFFLINE"
+                count = int(data.get("player_count", 0) or 0)
+                await self.presence_updater(f"{adapter.display_name}: {status_label} ({count} players)")
         except Exception as exc:
             LOGGER.warning("Monitor check failed for %s: %s", adapter.key, exc)

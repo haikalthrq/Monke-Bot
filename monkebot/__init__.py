@@ -1,1 +1,1 @@
-"""MonkeHost Discord bot package."""
+"""Monke-Bot Discord bot package."""

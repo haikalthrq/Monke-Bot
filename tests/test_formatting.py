@@ -10,10 +10,10 @@ from monkebot.core.formatting import (
 
 
 class FormattingTests(unittest.TestCase):
-    def test_timestamp_is_converted_to_wib(self) -> None:
+    def test_timestamp_is_converted_to_discord_tag(self) -> None:
         self.assertEqual(
             format_timestamp("2026-08-08T07:22:51+00:00"),
-            "08/08/2026 14:22:51 WIB",
+            "<t:1786173771:f>",
         )
 
     def test_missing_timestamp_is_human_readable(self) -> None:
@@ -66,7 +66,7 @@ class FormattingTests(unittest.TestCase):
                     "player_count_at": "2026-08-08T07:22:51+00:00",
                 }
             ),
-            "**Online players:** `2`\n- `Alice`\n- `Bob`\n\n**Updated:** `08/08/2026 14:22:51 WIB`",
+            "**Online players:** `2`\n- `Alice`\n- `Bob`\n\n**Updated:** `<t:1786173771:f>`",
         )
 
 

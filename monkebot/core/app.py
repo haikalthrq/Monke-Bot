@@ -36,7 +36,7 @@ class MonkeClient(discord.Client):
             self.config.guild_id,
             self.config.operator_role_ids,
         )
-        CommandRegistrar(self.tree, authorizer, self.adapters).register()
+        CommandRegistrar(self.tree, authorizer, self.adapters, notify=self.notify).register()
         if self.config.guild_id:
             guild = discord.Object(id=self.config.guild_id)
             self.tree.copy_global_to(guild=guild)
@@ -50,11 +50,19 @@ class MonkeClient(discord.Client):
             self.notify,
             self.config.monitor_interval,
             self.config.notify_backup_success,
+            presence_updater=self.update_presence,
         )
         asyncio.create_task(self.monitor.run())
 
     async def on_ready(self) -> None:
         LOGGER.info("Logged in as %s (%s)", self.user, self.user.id if self.user else "unknown")
+
+    async def update_presence(self, status_text: str) -> None:
+        try:
+            activity = discord.Activity(type=discord.ActivityType.watching, name=status_text)
+            await self.change_presence(activity=activity)
+        except Exception:
+            LOGGER.debug("Could not update Discord presence", exc_info=True)
 
     async def notify(self, message: str, color: int = 0x5865F2) -> None:
         if not self.config.status_channel_id:
@@ -67,7 +75,7 @@ class MonkeClient(discord.Client):
                 LOGGER.exception("Could not fetch notification channel")
                 return
         if isinstance(channel, (discord.TextChannel, discord.Thread)):
-            await channel.send(embed=make_embed("MonkeHost", message, color))
+            await channel.send(embed=make_embed("Monke-Bot", message, color))
 
 
 async def run() -> None:
